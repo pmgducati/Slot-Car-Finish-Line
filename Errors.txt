@@ -1,0 +1,42 @@
+In file included from C:\Users\Patrick\Documents\Arduino\Tower_Check\Tower_Check.ino:2:0:
+C:\Users\Patrick\AppData\Local\Arduino15\packages\teensy\hardware\avr\1.57.2\libraries\FastLED\src/FastLED.h:14:21: note: #pragma message: FastLED version 3.004.000
+ #    pragma message "FastLED version 3.004.000"
+                     ^
+In file included from c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.h:30:0,
+                 from c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp:20:
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_BusIO_t3/Adafruit_I2CDevice_t3.h:9:36: error: 'Wire2' is not a type
+   Adafruit_I2CDevice(uint8_t addr, Wire2 *theWire = &Wire);
+                                    ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_BusIO_t3/Adafruit_I2CDevice_t3.h:28:3: error: 'Wire2' does not name a type
+   Wire2 *_wire;
+   ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_BusIO_t3/Adafruit_I2CDevice_t3.h:9:54: error: could not convert '& Wire' from 'i2c_t3*' to 'int*'
+   Adafruit_I2CDevice(uint8_t addr, Wire2 *theWire = &Wire);
+                                                      ^
+In file included from c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp:20:0:
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.h:49:58: error: 'TwoWire' has not been declared
+   Adafruit_GrayOLED(uint8_t bpp, uint16_t w, uint16_t h, TwoWire *twi = &Wire,
+                                                          ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.h:96:3: error: 'TwoWire' does not name a type
+   TwoWire *_theWire = NULL; ///< The underlying hardware I2C
+   ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.h:49:74: error: could not convert '& Wire' from 'i2c_t3*' to 'int*'
+   Adafruit_GrayOLED(uint8_t bpp, uint16_t w, uint16_t h, TwoWire *twi = &Wire,
+                                                                          ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp:64:38: error: 'TwoWire' has not been declared
+                                      TwoWire *twi, int8_t rst_pin,
+                                      ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp: In constructor 'Adafruit_GrayOLED::Adafruit_GrayOLED(uint8_t, uint16_t, uint16_t, int*, int8_t, uint32_t, uint32_t)':
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp:69:3: error: '_theWire' was not declared in this scope
+   _theWire = twi;
+   ^
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp: In member function 'bool Adafruit_GrayOLED::_init(uint8_t, bool)':
+c:\Users\Patrick\Documents\Arduino\libraries\Adafruit_GFX_Library_t3\Adafruit_GrayOLED_t3.cpp:243:7: error: '_theWire' was not declared in this scope
+   if (_theWire) { // using I2C
+       ^
+Multiple libraries were found for "SD.h"
+  Used: C:\Users\Patrick\AppData\Local\Arduino15\packages\teensy\hardware\avr\1.57.2\libraries\SD
+  Not used: C:\Users\Patrick\AppData\Local\Arduino15\libraries\SD
+exit status 1
+
+Compilation error: exit status 1
