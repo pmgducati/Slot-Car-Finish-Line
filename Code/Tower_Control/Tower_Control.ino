@@ -1,14 +1,13 @@
 // Libraries
 #include <FastLED.h>
-#include <i2c_t3.h>
 #include <Encoder.h>
-#include <Adafruit_GFX.h>
-#include "Adafruit_LiquidCrystal_t3.h"
-#include "Adafruit_LEDBackpack_t3.h"
-#include <Audio_t3.h>
 #include <SPI.h>
 #include <SD.h>
 #include <SerialFlash.h>
+#include <Wire.h>
+#include <Audio.h>
+#include <Adafruit_LiquidCrystal.h>
+#include <Adafruit_LEDBackpack.h>
 
 //NeoPixel Assignments
 #define NUM_LEDS 16 // How many leds in your strip?
@@ -46,8 +45,8 @@ Adafruit_AlphaNum4 LapTimeRec = Adafruit_AlphaNum4();
 
 //Pin Assignments
 #define SDCARD_CS_PIN    BUILTIN_SDCARD //used for Audio Playback
-#define SDCARD_MOSI_PIN  11             //used for Audio Playback
-#define SDCARD_SCK_PIN   13             //used for Audio Playback
+#define SDCARD_MOSI_PIN  61             //used for Audio Playback 11
+#define SDCARD_SCK_PIN   60             //used for Audio Playback 13
 #define RE_BUTTON        26             //Rotary Encoder Button
 #define BACK_BUTTON      24             //Back Button
 #define START_BUTTON     25             //Start Race Button
@@ -65,7 +64,7 @@ Adafruit_AlphaNum4 LapTimeRec = Adafruit_AlphaNum4();
 #define ENCODER2_PIN     28             //Notification LED
 
 // LCD Backpack Setup
-Adafruit_LiquidCrystal lcd(0); //default address #0 (A0-A2 not jumpered)
+Adafruit_LiquidCrystal lcd(1); //default address #0 (A0-A2 not jumpered)
 
 //Encoder Setup
 Encoder myEnc(ENCODER1_PIN, ENCODER2_PIN);
@@ -103,7 +102,7 @@ int  Last_Stop_Press = 0;             //Flags an event when the Stop Button is p
 
 //Race Identifiers
 int Num_of_Laps = 5;   //Number of laps in the Race (Can be Modified in Menu 5-99)
-int Num_of_Racers = 1; //Number of Racers in the Race (Can be Modified in Menu 1-4)
+int Num_of_Racers = 4; //Number of Racers in the Race (Can be Modified in Menu 1-4)
 int Num_Track = 1;     //Current Track Configuration (Can be Modified in Menu 1-99)
 int Num_Lane = 1;      //Used for Lane Assignment of Drivers/Car/Lap Times
 
@@ -144,10 +143,10 @@ int L1LapCount = 0;              //Lap Count, Per Lane
 int L2LapCount = 0;
 int L3LapCount = 0;
 int L4LapCount = 0;
-int L1CurrentLap;                //Per Car Current Lap Time, per lane
-int L2CurrentLap;
-int L3CurrentLap;
-int L4CurrentLap;
+unsigned long L1CurrentLap;                //Per Car Current Lap Time, per lane
+unsigned long L2CurrentLap;
+unsigned long L3CurrentLap;
+unsigned long L4CurrentLap;
 int P1CurrentLap;                //Car Lap Times in order of place in race, per lane
 int P2CurrentLap;
 int P3CurrentLap;
@@ -181,7 +180,7 @@ String Driver_Names[6] = {"Gino", "Luca", "Patrick", "Mike", "Laura", "Guest"};
 //Used to Diaplay Car Names and Numbers on LCD
 String Car_Names[10] = {"01 Skyline", "03 Ford Capri", "05 BMW 3.5 CSL", "05 Lancia LC2", "33 BMW M1", "51 Porsche 935", "576 Lancia Beta", "80 Audi RS5", "DE BTTF Delorean", "MM GT Falcon V8"};
 //Used to Display Numbers on 7 Segment and Lap Records
-char *Car_Numbers[10] = {"01", "03", "05", "05", "33", "51", "57", "80", "DE", "MM"};
+String Car_Numbers[10] = {"01", "03", "05", "05", "33", "51", "57", "80", "DE", "MM"}; //was *char
 
 
 void setup() {
@@ -385,7 +384,7 @@ void Number_of_Racers() {
     lcd.print("Number of Racers");
     lcd.setCursor(7, 1);
     lcd.print(Num_of_Racers);
-    Num_of_Racers = 1;
+    Num_of_Racers = 4;
     Enter_Menu = 0;
   }
   Rotary_Encoder();
@@ -1052,15 +1051,9 @@ void Sort() {
 
   // start at the current lap number going down to zero.
   // this may get slow at high lap numbers but should be fine as long as it doesnt get into the thousands of laps
-  Serial.print(Current_Lap_Num); Serial.print(" ");
-  Serial.print(L1CurrentLap); Serial.print(" ");
-  Serial.print(L1LapCount); Serial.print(" ");
-  Serial.print(L2CurrentLap); Serial.print(" ");
-  Serial.print(L2LapCount); Serial.print(" ");
-  Serial.print(L3CurrentLap); Serial.print(" ");
-  Serial.print(L3LapCount); Serial.print(" ");
-  Serial.print(L4CurrentLap); Serial.print(" ");
-  Serial.print(L4LapCount); Serial.print(" ");
+  Serial.print("Current Lap: "); Serial.println(Current_Lap_Num);
+  Serial.print("Lane Lap Times (1-4): "); Serial.print(L1CurrentLap); Serial.print(" "); Serial.print(L2CurrentLap); Serial.print(" "); Serial.print(L3CurrentLap); Serial.print(" ");  Serial.println(L4CurrentLap);
+  Serial.print("Lane Lap Numbers (1-4): "); Serial.print(L1LapCount); Serial.print(" "); Serial.print(L2LapCount); Serial.print(" "); Serial.print(L3LapCount); Serial.print(" "); Serial.println(L4LapCount);
   for (int i = Current_Lap_Num; i >= 0; i--) {
 
     // look at each lane, if they are on the current lap...
@@ -1079,18 +1072,20 @@ void Sort() {
     for (int j = 0; j < 4; j++) {
       if ( lane_order[i] == 0) {
         fastest = min(fastest, LaneCurrentLap[j]);
+	//fastest = min(fastest, RacePosition[j]);
       }
     }
 
     // which lane matches the fastest time?
     for (int j = 0; j < 4; j++) {
       if ( lane_order[j] == 0 && LaneCurrentLap[j] == fastest ) {
+      //if ( lane_order[j] == 0 && RacePosition[j] == fastest ) {
         lane_order[j] = place;
         place++;
-        //Serial.print(lane_order[j]);
+        Serial.print(lane_order[j]);
         break;
       }
-      //Serial.println ("");
+      //Serial.println (" ");
     }
 
     // reset unsorted items
@@ -1100,28 +1095,28 @@ void Sort() {
       }
     }
 
-
+    //place++;
     // only assign 5 places, then quit
     if (place == 5) {
       break;
     }
   }
 
-  for (int j = 0; j < 4; j++) {
-    Serial.print ( lane_order[j]);
-    Serial.print ( " ");
-  }
+//  for (int j = 0; j < 4; j++) {
+//    Serial.print ( lane_order[j]);
+//    Serial.print ( " ");
+//  }
   Serial.println ( " ");
 
-  //  Display_Leaderboard();
+//   Display_Leaderboard();
 
 }
 
-//void Display_Leaderboard() {
-//
+// void Display_Leaderboard() {
+
 //  int Laptimes[4] = {L1CurrentLap, L2CurrentLap, L3CurrentLap, L4CurrentLap};   // just the last time long to go aroun
 //  int car_num[4] = {L1CarNum , L2CarNum, L3CarNum, L4CarNum};
-//
+
 //  char P1Buffer_Time[4];
 //  char P2Buffer_Time[4];
 //  char P3Buffer_Time[4];
@@ -1130,37 +1125,37 @@ void Sort() {
 //  char P2Buffer_Car[2];
 //  char P3Buffer_Car[2];
 //  char P4Buffer_Car[2];
-//
+
 //  for (int j = 0; j < 4; j++) {
 //    if (lane_order[j] == 1) {
 //      P1Buffer_Car[0] = Car_Numbers[car_num[j]][0];
 //      P1Buffer_Car[1] = Car_Numbers[car_num[j]][1];
 //      sprintf(P1Buffer_Time, "%4d", Laptimes[j]);
-//
+
 //    }
-//
+
 //    if ( lane_order[j] == 2) {
 //      P2Buffer_Car[0] = Car_Numbers[car_num[j]][0];
 //      P2Buffer_Car[1] = Car_Numbers[car_num[j]][1];
 //      sprintf(P2Buffer_Time, "%4d", Laptimes[j]);
 //    }
-//
+
 //    if ( lane_order[j] == 3) {
 //      P3Buffer_Car[0] = Car_Numbers[car_num[j]][0];
 //      P3Buffer_Car[1] = Car_Numbers[car_num[j]][1];
 //      sprintf(P3Buffer_Time, "%4d", Laptimes[j]);
-//
+
 //    }
-//
+
 //    if (lane_order[j] == 4) {
 //      P4Buffer_Car[0] = Car_Numbers[car_num[j]][0];
 //      P4Buffer_Car[1] = Car_Numbers[car_num[j]][1];
 //      sprintf(P4Buffer_Time, "%4d", Laptimes[j]);
 //    }
-//
+
 //  }
-//
-//
+
+
 //  if (Current_Lap_Num >= 2) {
 //    P1Time.clear();
 //    P2Time.clear();
@@ -1209,7 +1204,7 @@ void Sort() {
 //    Serial.print("4: ");
 //    Serial.println(Car_Numbers[P4_CarNum]);
 //  }
-//}
+// }
 
 void End_Race() {
   if (Num_of_Laps == Current_Lap_Num && Enter_Menu == 1) {
