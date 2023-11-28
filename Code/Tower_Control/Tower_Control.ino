@@ -126,7 +126,7 @@ unsigned short Record_Lap = 10000;  //Lap Record Time
 int Record_Car_Num;                 //Lap Record Car Number
 int EEPROMCar = 0;
 char RecordCar;
-int L1_State = 0;                   //In Track Lap Counter Monitors State, per lane
+int L1_State = 0;  //In Track Lap Counter Monitors State, per lane
 int L2_State = 0;
 int L3_State = 0;
 int L4_State = 0;
@@ -227,7 +227,7 @@ void setup() {
   //Read EEPROM for Lap Record Info
   Record_Lap = EEPROMReadlong(0x02);
   RecordCar = EEPROM.read(0x00);
-  
+
 
 
   //Setup the 7-Segment LED Panels
@@ -986,6 +986,7 @@ void Race_Metrics() {
 void LapRecordDisplay() {
   char LapTimeRec_Buffer[4];
   char LapRecNum_Buffer[4];
+  RecordCar = Record_Car_Num;
   LapRecNum_Buffer[0] = Car_Numbers[RecordCar][0];
   LapRecNum_Buffer[1] = Car_Numbers[RecordCar][1];
   sprintf(LapTimeRec_Buffer, "%4d", Record_Lap);
@@ -1120,6 +1121,65 @@ void Sort() {
     }
   }
   Display_Leaderboard();
+}
+//OLD SORT ERIC HELPED WITH
+void OldSort() {
+  // set the lane order array to all -1  (meaning, unsorted)
+  for (int j = 0; j < 4; j++) {
+    lane_order[j] = -1;
+  }
+
+
+  // each lane will get marked with a place, starting with 1st place
+  int place = 1;
+
+  // start at the current lap number going down to zero.
+  // this may get slow at high lap numbers but should be fine as long as it doesnt get into the thousands of laps
+  for (int i = Current_Lap_Num; i >= 0; i--) {
+    // look at each lane, if they are on the current lap...
+    // set the corresponding lane_order to 0 (meaning, to do)
+    for (int j = 0; j < 4; j++) {
+      if (LapCounter[j] == i) {
+        lane_order[j] = 0;
+      }
+    }
+
+
+    // we want this to be the biggest time possible.
+    unsigned long fastest = 0xFFFFFFFF;
+
+    // of the lanes marked with a zero, what is the fastest time?
+    for (int j = 0; j < 4; j++) {
+      if (lane_order[i] == 0) {
+        fastest = min(fastest, LaneCurrentLap[j]);
+        //fastest = min(fastest, RacePosition[j]);
+      }
+    }
+
+    // which lane matches the fastest time?
+    for (int j = 0; j < 4; j++) {
+      if (lane_order[j] == 0 && LaneCurrentLap[j] == fastest) {
+        //if ( lane_order[j] == 0 && RacePosition[j] == fastest ) {
+        lane_order[j] = place;
+        place++;
+        break;
+      }
+      //Serial.println (" ");
+    }
+
+    // reset unsorted items
+    for (int j = 0; j < 4; j++) {
+      if (lane_order[j] == 0) {
+        lane_order[j] = -1;
+      }
+    }
+
+    //place++;
+    // only assign 5 places, then quit
+    if (place == 5) {
+      break;
+    }
+  }
 }
 //Display Sorted Car Numbers and Lap times on Pole Position 7 Segmet Displays
 void Display_Leaderboard() {
@@ -1322,7 +1382,21 @@ void End_Race() {
     }
   }
 
-  if (L1_Finish == 1 && L2_Finish == 1 && L3_Finish == 1 && L4_Finish == 1) {  //End Race After all Cars Cross the Finish Line
+  if (Num_of_Racers == 2 && L1_Finish == 1 && L2_Finish == 1) {  //End Race After all Cars Cross the Finish Line
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Race Finished!!");
+    Race_Over = 1;
+  }
+
+  if (Num_of_Racers == 3 && L1_Finish == 1 && L2_Finish == 1 && L3_Finish == 1) {  //End Race After all Cars Cross the Finish Line
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Race Finished!!");
+    Race_Over = 1;
+  }
+
+  if (Num_of_Racers == 4 && L1_Finish == 1 && L2_Finish == 1 && L3_Finish == 1 && L4_Finish == 1) {  //End Race After all Cars Cross the Finish Line
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Race Finished!!");
@@ -1393,4 +1467,3 @@ void ClearRace() {
 //Work to do:
 //1. Display Sorted Car Number and Lap Times on Leaderboard - Working, not confident in data
 //2. Gate LED Behavior at Finish - Issues related to Sort
-//3. Less than 4 Cars Racing
