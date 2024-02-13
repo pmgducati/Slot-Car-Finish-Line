@@ -1138,33 +1138,56 @@ void Display_Leaderboard() {
 //Final Lap and Finish Actions
 void End_Race() {
   //At Last Lap Turn all LEDs white and play the Last Lap song
+  // if (Num_of_Laps == Current_Lap_Num && Enter_Menu == 1) {
+  //   Enter_Menu = 0;
+  //   Last_Lap = 1;
+  //   playSdWav1.play("LASTLAP.WAV");
+  //   for (int i = 0; i < 4; i++) {
+  //     if (Num_of_Racers == 1) {
+  //       leds[Lane1NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane2NP[i]] = CRGB(0, 0, 0);
+  //       leds[Lane3NP[i]] = CRGB(0, 0, 0);
+  //       leds[Lane4NP[i]] = CRGB(0, 0, 0);
+  //     }
+  //     if (Num_of_Racers == 2) {
+  //       leds[Lane1NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane2NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane3NP[i]] = CRGB(0, 0, 0);
+  //       leds[Lane4NP[i]] = CRGB(0, 0, 0);
+  //     }
+  //     if (Num_of_Racers == 3) {
+  //       leds[Lane1NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane2NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane3NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane4NP[i]] = CRGB(0, 0, 0);
+  //     }
+  //     if (Num_of_Racers == 4) {
+  //       leds[Lane1NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane2NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane3NP[i]] = CRGB(255, 255, 255);
+  //       leds[Lane4NP[i]] = CRGB(255, 255, 255);
+  //     }
+  //   }
+  //   FastLED.show();
+  // }
   if (Num_of_Laps == Current_Lap_Num && Enter_Menu == 1) {
     Enter_Menu = 0;
     Last_Lap = 1;
-    playSdWav1.play("LASTLAP.WAV");
     for (int i = 0; i < 4; i++) {
-      if (Num_of_Racers == 1) {
+      if (Num_of_Laps == cars[0].cur_lap) {
+        playSdWav1.play("LASTLAP.WAV");
         leds[Lane1NP[i]] = CRGB(255, 255, 255);
-        leds[Lane2NP[i]] = CRGB(0, 0, 0);
-        leds[Lane3NP[i]] = CRGB(0, 0, 0);
-        leds[Lane4NP[i]] = CRGB(0, 0, 0);
       }
-      if (Num_of_Racers == 2) {
-        leds[Lane1NP[i]] = CRGB(255, 255, 255);
+      if (Num_of_Laps == cars[1].cur_lap) {
+        playSdWav1.play("LASTLAP.WAV");
         leds[Lane2NP[i]] = CRGB(255, 255, 255);
-        leds[Lane3NP[i]] = CRGB(0, 0, 0);
-        leds[Lane4NP[i]] = CRGB(0, 0, 0);
       }
-      if (Num_of_Racers == 3) {
-        leds[Lane1NP[i]] = CRGB(255, 255, 255);
-        leds[Lane2NP[i]] = CRGB(255, 255, 255);
+      if (Num_of_Laps == cars[2].cur_lap) {
+        playSdWav1.play("LASTLAP.WAV");
         leds[Lane3NP[i]] = CRGB(255, 255, 255);
-        leds[Lane4NP[i]] = CRGB(0, 0, 0);
       }
-      if (Num_of_Racers == 4) {
-        leds[Lane1NP[i]] = CRGB(255, 255, 255);
-        leds[Lane2NP[i]] = CRGB(255, 255, 255);
-        leds[Lane3NP[i]] = CRGB(255, 255, 255);
+      if (Num_of_Laps == cars[3].cur_lap) {
+        playSdWav1.play("LASTLAP.WAV");
         leds[Lane4NP[i]] = CRGB(255, 255, 255);
       }
     }
@@ -1180,6 +1203,7 @@ void End_Race() {
     LapRecNum.writeDigitAscii(2, FL[0]);
     LapRecNum.writeDigitAscii(3, FL[1]);
     LapRecNum.writeDisplay();
+    LapRecordDisplay();
   }
   //Action When Car in Lane 1 Finishes the Race
   if (cars[0].cur_lap > Num_of_Laps && cars[0].finish == 0) {
@@ -1195,15 +1219,18 @@ void End_Race() {
       leds[Lane1NP[1]] = CRGB(0, 255, 255);
     }
     if (cars[0].place == 2) {
+      playSdWav1.play("RECORD.WAV");
       leds[Lane1NP[0]] = CRGB(0, 255, 255);
       leds[Lane1NP[2]] = CRGB(0, 255, 255);
     }
     if (cars[0].place == 3) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 3; i++) {
         leds[Lane1NP[i]] = CRGB(0, 255, 255);
       }
     }
     if (cars[0].place == 4) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 4; i++) {
         leds[Lane1NP[i]] = CRGB(0, 255, 255);
       }
@@ -1224,15 +1251,18 @@ void End_Race() {
       leds[Lane2NP[1]] = CRGB(0, 255, 255);
     }
     if (cars[1].place == 2) {
+      playSdWav1.play("RECORD.WAV");
       leds[Lane2NP[0]] = CRGB(0, 255, 255);
       leds[Lane2NP[2]] = CRGB(0, 255, 255);
     }
     if (cars[1].place == 3) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 3; i++) {
         leds[Lane2NP[i]] = CRGB(0, 255, 255);
       }
     }
     if (cars[1].place == 4) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 4; i++) {
         leds[Lane2NP[i]] = CRGB(0, 255, 255);
       }
@@ -1253,15 +1283,18 @@ void End_Race() {
       leds[Lane3NP[1]] = CRGB(0, 255, 255);
     }
     if (cars[2].place == 2) {
+      playSdWav1.play("RECORD.WAV");
       leds[Lane3NP[0]] = CRGB(0, 255, 255);
       leds[Lane3NP[2]] = CRGB(0, 255, 255);
     }
     if (cars[2].place == 3) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 3; i++) {
         leds[Lane3NP[i]] = CRGB(0, 255, 255);
       }
     }
     if (cars[2].place == 4) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 4; i++) {
         leds[Lane3NP[i]] = CRGB(0, 255, 255);
       }
@@ -1282,15 +1315,18 @@ void End_Race() {
       leds[Lane4NP[1]] = CRGB(0, 255, 255);
     }
     if (cars[3].place == 2) {
+      playSdWav1.play("RECORD.WAV");
       leds[Lane4NP[0]] = CRGB(0, 255, 255);
       leds[Lane4NP[2]] = CRGB(0, 255, 255);
     }
     if (cars[3].place == 3) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 3; i++) {
         leds[Lane4NP[i]] = CRGB(0, 255, 255);
       }
     }
     if (cars[3].place == 4) {
+      playSdWav1.play("RECORD.WAV");
       for (int i = 0; i < 4; i++) {
         leds[Lane4NP[i]] = CRGB(0, 255, 255);
       }
