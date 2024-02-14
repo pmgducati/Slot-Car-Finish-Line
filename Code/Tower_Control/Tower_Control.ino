@@ -75,12 +75,18 @@ Encoder myEnc(ENCODER1_PIN, ENCODER2_PIN);
 //Variables
 //Menu Navigation - The variables trigger a menu change when flagged as 1
 int Welcome_Message_Menu = 1;
+int Options_Menu = 0;
 int Number_of_Racers_Menu = 0;
 int Number_of_Laps_Menu = 0;
 int Car_Num_Lane_Assign_Menu = 0;
 int Start_Race_Menu = 0;
 int Erase_Record_Lap_Menu = 0;
 int Enter_Menu = 1;
+int Enter_Sub_Menu = 0;
+int Options_Stop_race = 0;
+int Options_Clear_Lap_Record = 0;
+int Options_Track_Debounce = 0;
+int Options_Penalty = 0;
 int Screen_Change = 0;
 int Array_Increment = 0;
 int Race_Metrics_Toggle = 0;
@@ -102,6 +108,7 @@ unsigned long L4_Debounce_Time_Reference;
 unsigned long Pause_Offset;  //Time to ajdust in the event the race is paused
 #define RE_DEBOUNCE 125      //Debounce time for the Rotary Encoder
 #define BUTTON_DEBOUNCE 200  //Debounce time for a Button Press
+int TRACK_DEBOUNCE = 1000;   //Debounce time for a Button Press
 
 //Race Identifiers
 int Num_of_Laps = 5;    //Number of laps in the Race (Can be Modified in Menu 5-99)
@@ -167,20 +174,22 @@ int Center_Value;  //Used to center the text on the 16x2 LCD screen
 #define DIM_DELAY 50              //Dimming Speed (Higher = Slower)
 #define YELLOW_LIGHT_DELAY 750    //Delay between Yellow Lights
 #define RED_LIGHT_DELAY 4250      //Time for Red Lights
-#define STOP_RACE_DELAY 10000     //Time for red lights to be active before reset
+int STOP_RACE_DELAY = 10000;      //Time for red lights to be active before reset
 
 //Relay Penality Variables
 int Penality_Lane1 = 0;  //Flag if car crosses start line before the green light, per lane
 int Penality_Lane2 = 0;
 int Penality_Lane3 = 0;
 int Penality_Lane4 = 0;
-#define PENALITY_DELAY 5000  //Penality Duration
+int PENALITY_DELAY = 5000;  //Penality Duration
 
 //Menu Arrays
 //Car Names and Numbers Displayed on LCD
 String Car_Names[10] = { "01 Skyline", "03 Ford Capri", "05 BMW 3.5 CSL", "05 Lancia LC2", "33 Audi RS5", "51 Porsche 935", "576 Lancia Beta", "80 BMW M1", "88 BTTF Delorean", "MM GT Falcon V8" };
 //Car Numbers on Displayed on Pole Position and Lap Record 7 Segment
-String Car_Numbers[11] = { "01", "03", "05", "05", "33", "51", "57", "80", "DE", "MM", "--" };
+String Car_Numbers[11] = { "01", "03", "05", "05", "33", "51", "57", "80", "88", "MM", "--" };
+//Options Menu
+String Options_Selection[5] = { "Start Race", "End Race Time", "Penalty Time", "Track Debounce", "Erase Lap Record" };
 //Menu selection for Erasing EEPROM
 String Rec_Reset[20] = { "NO", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X", "YES", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X" };
 
@@ -218,6 +227,14 @@ long EEPROMReadlong(long address) {
   //Return the recomposed long by using bitshift.
   return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }
+
+int EEPROMReadInt(int address) {
+  long two = EEPROM.read(address);
+  long one = EEPROM.read(address + 1);
+
+  return ((two << 0) & 0xFFFFFF) + ((one << 8) & 0xFFFFFFFF);
+}
+
 void setup() {
   //Start Serial Monitor
   Serial.begin(9600);
@@ -233,6 +250,16 @@ void setup() {
   //Read EEPROM for Lap Record Info
   Record_Lap = EEPROMReadlong(0x02);
   RecordCar = EEPROM.read(0x00);
+  PENALITY_DELAY = EEPROMReadInt(0x08);
+  STOP_RACE_DELAY = EEPROMReadInt(0x06);
+  TRACK_DEBOUNCE = EEPROMReadInt(0x10);
+  Serial.print("Penalty: ");
+  Serial.println(PENALITY_DELAY);
+  Serial.print("End: ");
+  Serial.println(STOP_RACE_DELAY);
+  Serial.print("Debounce: ");
+  Serial.println(TRACK_DEBOUNCE);
+
 
   //Setup the 7-Segment LED Panels
   P1P2Num.begin(0x70);     // pass in the address for the Place 1 and 2 Car Numbers
@@ -293,6 +320,9 @@ void loop() {
   if (Welcome_Message_Menu == 1) {
     Welcome_Message();
   }
+  if (Options_Menu == 1) {
+    Options();
+  }
   if (Number_of_Racers_Menu == 1) {
     Number_of_Racers();
   }
@@ -319,11 +349,20 @@ void loop() {
   if (Stop_Race_Toggle == 1) {
     Stop_Race();
   }
-  if (Erase_Record_Lap_Menu == 1) {
-    Clear_Record_Lap();
-  }
   if (Back_Button_Press == 1 && Last_Back_Press == 0 && Current_Time > (Debounce_Time_Reference + RE_DEBOUNCE)) {
     Menu_Back();
+  }
+  if (Options_Stop_race == 1) {
+    Menu_Stop_Race();
+  }
+  if (Options_Clear_Lap_Record == 1) {
+    Clear_Record_Lap();
+  }
+  if (Options_Track_Debounce == 1) {
+    Menu_Track_Debounce();
+  }
+  if (Options_Penalty == 1) {
+    Menu_Penalty();
   }
   //Record button presses to avoid rapid repeats
   Last_Back_Press = Back_Button_Press;
@@ -345,6 +384,10 @@ void playFile(const char *filename) {
 void Menu_Back() {
   Debounce_Time_Reference = Current_Time;
   Enter_Menu = 1;  //Enables menu intros
+  if (Number_of_Racers_Menu == 1) {
+    Options_Menu = 1;
+    Number_of_Racers_Menu = 0;
+  }
   if (Number_of_Laps_Menu == 1) {
     Number_of_Racers_Menu = 1;
     Number_of_Laps_Menu = 0;
@@ -413,6 +456,238 @@ void Rotary_Encoder() {
   } else {
     New_Position = myEnc.read();
     Old_Position = New_Position;
+  }
+}
+void Options() {
+  if (Enter_Menu == 1) {  //Initialization of the Racers Menu
+    lcd.clear();
+    lcd.setCursor(4, 0);
+    lcd.print("Options");
+    lcd.setCursor(3, 1);
+    lcd.print(Options_Selection[0]);
+    Array_Increment = 0;
+    Enter_Menu = 0;
+    Enter_Sub_Menu = 1;
+  }
+  Rotary_Encoder();
+  if (New_Position > Old_Position) {  //Watch the Rotary Encoder and add to the number of racers
+    Debounce_Time_Reference = Current_Time;
+    Array_Increment++;
+    if (Array_Increment > 4) {
+      Array_Increment = 4;
+    }
+    Screen_Change = 1;
+  }
+  if (New_Position < Old_Position) {  //Watch the Rotary Encoder and subtract from the number of racers
+    Debounce_Time_Reference = Current_Time;
+    Array_Increment--;
+    if (Array_Increment < 0) {
+      Array_Increment = 0;
+    }
+    Screen_Change = 1;
+  }
+  if (Screen_Change == 1) {  //Update the number of racers and display on LCD
+    playSdWav1.play("TICK.WAV");
+    String Option_Name = Options_Selection[Array_Increment];
+    Center_Value = (16 - Option_Name.length()) / 2;
+    lcd.clear();
+    lcd.setCursor(4, 0);
+    lcd.print("Options");
+    lcd.setCursor(Center_Value, 1);
+    lcd.print(Options_Selection[Array_Increment]);
+    Debounce_Time_Reference = Current_Time;
+    Old_Position = New_Position;
+    Screen_Change = 0;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE) && Array_Increment == 4) {  //Move on to Erase Lap Record
+    Options_Menu = 0;
+    Options_Clear_Lap_Record = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE) && Array_Increment == 3) {  //Move on to Track Debounce Setting
+    Options_Menu = 0;
+    Options_Track_Debounce = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE) && Array_Increment == 2) {  //Move on to Penalty Time Setting
+    Options_Menu = 0;
+    Options_Penalty = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE) && Array_Increment == 1) {  //Move on to End Race Time Setting
+    Options_Menu = 0;
+    Options_Stop_race = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE) && Array_Increment == 0) {  //Move on to Number of Racers Menu
+    Options_Menu = 0;
+    Number_of_Racers_Menu = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+}
+
+void Menu_Track_Debounce() {  //Move on to End Race Time Setting
+  if (Enter_Menu == 1) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Lane Debouncing");
+    lcd.setCursor(6, 1);
+    lcd.print(TRACK_DEBOUNCE);
+    Enter_Menu = 0;
+  }
+  Rotary_Encoder();
+  if (New_Position > Old_Position) {  //Watch the Rotary Encoder and add to the number of racers
+    Debounce_Time_Reference = Current_Time;
+    TRACK_DEBOUNCE = TRACK_DEBOUNCE + 500;
+    if (TRACK_DEBOUNCE > 5000) {
+      TRACK_DEBOUNCE = 5000;
+    }
+    Screen_Change = 1;
+  }
+  if (New_Position < Old_Position) {  //Watch the Rotary Encoder and subtract from the number of racers
+    Debounce_Time_Reference = Current_Time;
+    TRACK_DEBOUNCE = TRACK_DEBOUNCE - 500;
+    if (TRACK_DEBOUNCE < 500) {
+      TRACK_DEBOUNCE = 500;
+    }
+    Screen_Change = 1;
+  }
+  if (Screen_Change == 1) {  //Update the number of racers and display on LCD
+    playSdWav1.play("TICK.WAV");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Lane Debouncing");
+    lcd.setCursor(6, 1);
+    lcd.print(TRACK_DEBOUNCE);
+    Debounce_Time_Reference = Current_Time;
+    Old_Position = New_Position;
+    Screen_Change = 0;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Move on to Number of Laps Menu
+    EEPROMWriteInt(0x08, TRACK_DEBOUNCE);
+    Options_Track_Debounce = 0;
+    Options_Menu = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+}
+void Menu_Penalty() {  //Move on to End Race Time Setting
+  if (Enter_Menu == 1) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Penalty Timeout");
+    lcd.setCursor(6, 1);
+    lcd.print(PENALITY_DELAY);
+    Enter_Menu = 0;
+  }
+  Rotary_Encoder();
+  if (New_Position > Old_Position) {  //Watch the Rotary Encoder and add to the number of racers
+    Debounce_Time_Reference = Current_Time;
+    PENALITY_DELAY = PENALITY_DELAY + 500;
+    if (PENALITY_DELAY > 5000) {
+      PENALITY_DELAY = 5000;
+    }
+    Screen_Change = 1;
+  }
+  if (New_Position < Old_Position) {  //Watch the Rotary Encoder and subtract from the number of racers
+    Debounce_Time_Reference = Current_Time;
+    PENALITY_DELAY = PENALITY_DELAY - 500;
+    if (PENALITY_DELAY < 500) {
+      PENALITY_DELAY = 500;
+    }
+    Screen_Change = 1;
+  }
+  if (Screen_Change == 1) {  //Update the number of racers and display on LCD
+    playSdWav1.play("TICK.WAV");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Penalty Timeout");
+    lcd.setCursor(6, 1);
+    lcd.print(PENALITY_DELAY);
+    Debounce_Time_Reference = Current_Time;
+    Old_Position = New_Position;
+    Screen_Change = 0;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Move on to Number of Laps Menu
+    EEPROMWriteInt(0x10, PENALITY_DELAY);
+    Options_Penalty = 0;
+    Options_Menu = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
+  }
+}
+void Menu_Stop_Race() {  //Move on to End Race Time Setting
+  if (Enter_Menu == 1) {
+    lcd.clear();
+    lcd.setCursor(2, 0);
+    lcd.print("End Timeout");
+    lcd.setCursor(6, 1);
+    lcd.print(STOP_RACE_DELAY);
+    Enter_Menu = 0;
+  }
+  Rotary_Encoder();
+  if (New_Position > Old_Position) {  //Watch the Rotary Encoder and add to the number of racers
+    Debounce_Time_Reference = Current_Time;
+    STOP_RACE_DELAY = STOP_RACE_DELAY + 500;
+    if (STOP_RACE_DELAY > 10000) {
+      STOP_RACE_DELAY = 10000;
+    }
+    Screen_Change = 1;
+  }
+  if (New_Position < Old_Position) {  //Watch the Rotary Encoder and subtract from the number of racers
+    Debounce_Time_Reference = Current_Time;
+    STOP_RACE_DELAY = STOP_RACE_DELAY - 500;
+    if (STOP_RACE_DELAY < 1000) {
+      STOP_RACE_DELAY = 1000;
+    }
+    Screen_Change = 1;
+  }
+  if (Screen_Change == 1) {  //Update the number of racers and display on LCD
+    playSdWav1.play("TICK.WAV");
+    lcd.clear();
+    lcd.setCursor(2, 0);
+    lcd.print("End Timeout");
+    lcd.setCursor(6, 1);
+    lcd.print(STOP_RACE_DELAY);
+    Debounce_Time_Reference = Current_Time;
+    Old_Position = New_Position;
+    Screen_Change = 0;
+  }
+  if (Start_Button_Press == 1 && Last_Start_Press == 0 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Move on to Number of Laps Menu
+    EEPROMWriteInt(0x06, STOP_RACE_DELAY);
+    Options_Stop_race = 0;
+    Options_Menu = 1;
+    Enter_Menu = 1;
+    lcd.clear();
+    New_Position = myEnc.read();
+    Old_Position = New_Position;
+    Debounce_Time_Reference = Current_Time;
   }
 }
 //Menu Section for selecting # of racers
@@ -535,14 +810,14 @@ void Car_Num_Lane_Assign() {
     Debounce_Time_Reference = Current_Time;
     Array_Increment++;
     if (Array_Increment > 9) {
-      Array_Increment = 1;
+      Array_Increment = 0;
     }
     Screen_Change = 1;
   }
   if (New_Position < Old_Position) {  //Watch the Rotary Encoder and display the previous car number
     Debounce_Time_Reference = Current_Time;
     Array_Increment--;
-    if (Array_Increment < 1) {
+    if (Array_Increment < 0) {
       Array_Increment = 9;
     }
     Screen_Change = 1;
@@ -561,7 +836,7 @@ void Car_Num_Lane_Assign() {
   if (Start_Button_Press == 1 && Last_Start_Press == 0 && Num_Lane == 4 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Move on to Clear Record Lap Menu
     cars[3].car_number = Array_Increment;
     Enter_Menu = 1;
-    Erase_Record_Lap_Menu = 1;
+    Start_Race_Menu = 1;
     Car_Num_Lane_Assign_Menu = 0;
   }
   if (Start_Button_Press == 1 && Last_Start_Press == 0 && Num_Lane == 3 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Goto Driver Select Menu for Lane 4
@@ -570,7 +845,7 @@ void Car_Num_Lane_Assign() {
     Enter_Menu = 1;
     Car_Num_Lane_Assign_Menu = 1;
     if (Num_of_Racers == 3) {
-      Erase_Record_Lap_Menu = 1;
+      Start_Race_Menu = 1;
       Car_Num_Lane_Assign_Menu = 0;
     }
   }
@@ -580,7 +855,7 @@ void Car_Num_Lane_Assign() {
     Enter_Menu = 1;
     Car_Num_Lane_Assign_Menu = 1;
     if (Num_of_Racers == 2) {
-      Erase_Record_Lap_Menu = 1;
+      Start_Race_Menu = 1;
       Car_Num_Lane_Assign_Menu = 0;
     }
   }
@@ -590,7 +865,7 @@ void Car_Num_Lane_Assign() {
     Enter_Menu = 1;
     Car_Num_Lane_Assign_Menu = 1;
     if (Num_of_Racers == 1) {
-      Erase_Record_Lap_Menu = 1;
+      Start_Race_Menu = 1;
       Car_Num_Lane_Assign_Menu = 0;
     }
   }
@@ -600,6 +875,7 @@ void Clear_Record_Lap() {
   if (Enter_Menu == 1) {  //Initialization of the EEPROM Menu
     Array_Increment = 0;
     Debounce_Time_Reference = Current_Time;
+
     Start_Button_Press = 0;
     Enter_Menu = 0;
     lcd.clear();
@@ -643,8 +919,9 @@ void Clear_Record_Lap() {
   }
   if (Start_Button_Press == 1 && Last_Start_Press == 0 && Array_Increment != 10 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Do Not erase EEPROM and move on to Race Start
     Enter_Menu = 1;
-    Start_Race_Menu = 1;
+    Options_Menu = 1;
     Erase_Record_Lap_Menu = 0;
+    Options_Clear_Lap_Record = 0;
   }
 }
 //Centers the EEPROM Menu text on the LCD
@@ -793,6 +1070,7 @@ void Pause_Race() {
     digitalWrite(LANE2RELAYPIN, HIGH);
     digitalWrite(LANE3RELAYPIN, HIGH);
     digitalWrite(LANE4RELAYPIN, HIGH);
+    playSdWav1.play("PAUSE.WAV");
     Pause_Offset = Current_Time;  //This is the time the race was paused so it can be adjusted for the current lap
     Enter_Menu = 0;
   }
@@ -1021,6 +1299,14 @@ void EEPROM_writelong(int address, long value) {
   EEPROM.write(address + 2, two);
   EEPROM.write(address + 3, one);
 }
+
+void EEPROMWriteInt(int address, int value) {
+  byte two = (value & 0xFF);
+  byte one = ((value >> 8) & 0xFF);
+
+  EEPROM.update(address, two);
+  EEPROM.update(address + 1, one);
+}
 //Monitor Lap Number and Display on 7 Segment Display
 void Lap_Counter() {
   if (Current_Lap_Num < max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap)) {  //If the current lap counter is less than the highest lap, clear the display
@@ -1148,76 +1434,76 @@ void Display_Leaderboard() {
 //Display The Correct Number of Laps LED Pattern
 void LapCountdown() {
   if ((Num_of_Laps - cars[0].cur_lap) == 1) {
-    leds[Lane1NP[0]] = CRGB(0, 0, 0);    
-    leds[Lane1NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane1NP[2]] = CRGB(0, 0, 0);     
-    leds[Lane1NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane1NP[0]] = CRGB(0, 0, 0);
+    leds[Lane1NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[2]] = CRGB(0, 0, 0);
+    leds[Lane1NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[0].cur_lap) == 2) {
-    leds[Lane1NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane1NP[1]] = CRGB(0, 0, 0);      
-    leds[Lane1NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane1NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane1NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[1]] = CRGB(0, 0, 0);
+    leds[Lane1NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[0].cur_lap) == 3) {
-    leds[Lane1NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane1NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane1NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane1NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane1NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane1NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[1].cur_lap) == 1) {
-    leds[Lane2NP[0]] = CRGB(0, 0, 0);    
-    leds[Lane2NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane2NP[2]] = CRGB(0, 0, 0);     
-    leds[Lane2NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane2NP[0]] = CRGB(0, 0, 0);
+    leds[Lane2NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[2]] = CRGB(0, 0, 0);
+    leds[Lane2NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[1].cur_lap) == 2) {
-    leds[Lane2NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane2NP[1]] = CRGB(0, 0, 0);      
-    leds[Lane2NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane2NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane2NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[1]] = CRGB(0, 0, 0);
+    leds[Lane2NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[1].cur_lap) == 3) {
-    leds[Lane2NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane2NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane2NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane2NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane2NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane2NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[2].cur_lap) == 1) {
-    leds[Lane3NP[0]] = CRGB(0, 0, 0);    
-    leds[Lane3NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane3NP[2]] = CRGB(0, 0, 0);     
-    leds[Lane3NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane3NP[0]] = CRGB(0, 0, 0);
+    leds[Lane3NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[2]] = CRGB(0, 0, 0);
+    leds[Lane3NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[2].cur_lap) == 2) {
-    leds[Lane3NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane3NP[1]] = CRGB(0, 0, 0);      
-    leds[Lane3NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane3NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane3NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[1]] = CRGB(0, 0, 0);
+    leds[Lane3NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[2].cur_lap) == 3) {
-    leds[Lane3NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane3NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane3NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane3NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane3NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane3NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[3].cur_lap) == 1) {
-    leds[Lane4NP[0]] = CRGB(0, 0, 0);    
-    leds[Lane4NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane4NP[2]] = CRGB(0, 0, 0);     
-    leds[Lane4NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane4NP[0]] = CRGB(0, 0, 0);
+    leds[Lane4NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[2]] = CRGB(0, 0, 0);
+    leds[Lane4NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[3].cur_lap) == 2) {
-    leds[Lane4NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane4NP[1]] = CRGB(0, 0, 0);      
-    leds[Lane4NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane4NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane4NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[1]] = CRGB(0, 0, 0);
+    leds[Lane4NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[3]] = CRGB(0, 0, 0);
   }
   if ((Num_of_Laps - cars[3].cur_lap) == 3) {
-    leds[Lane4NP[0]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane4NP[1]] = CHSV(BootColors[0], 255, 255);    
-    leds[Lane4NP[2]] = CHSV(BootColors[0], 255, 255);     
-    leds[Lane4NP[3]] = CRGB(0, 0, 0);    
+    leds[Lane4NP[0]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[1]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[2]] = CHSV(BootColors[0], 255, 255);
+    leds[Lane4NP[3]] = CRGB(0, 0, 0);
   }
   FastLED.show();
 }
