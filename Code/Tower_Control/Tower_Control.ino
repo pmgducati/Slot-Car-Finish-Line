@@ -54,10 +54,10 @@ Adafruit_AlphaNum4 LapTimeRec = Adafruit_AlphaNum4();  //Lap Record Time
 #define BACK_BUTTON 24                //Back Button
 #define START_BUTTON 25               //Start Race Button
 #define STOP_BUTTON 27                //Pause Button
-#define LANE1RELAYPIN 17              //Controls the Relay for Lane 1 in the Control Box
-#define LANE2RELAYPIN 16              //Controls the Relay for Lane 2 in the Control Box
-#define LANE3RELAYPIN 15              //Controls the Relay for Lane 3 in the Control Box
-#define LANE4RELAYPIN 14              //Controls the Relay for Lane 4 in the Control Box
+#define LANE1RELAYPIN 14              //Controls the Relay for Lane 1 in the Control Box
+#define LANE2RELAYPIN 15              //Controls the Relay for Lane 2 in the Control Box
+#define LANE3RELAYPIN 16              //Controls the Relay for Lane 3 in the Control Box
+#define LANE4RELAYPIN 17              //Controls the Relay for Lane 4 in the Control Box
 #define LANE1LAP_TR_PIN 36            //Lap counter switch in Lane 1
 #define LANE2LAP_TR_PIN 35            //Lap counter switch in Lane 2
 #define LANE3LAP_TR_PIN 34            //Lap counter switch in Lane 3
@@ -122,30 +122,30 @@ int Last_Back_Press = 0;     //Flags an event when the Back Button is pressed
 int Last_Start_Press = 0;    //Flags an event when the Start Button is pressed
 
 //Race Information
-int Current_Lap_Num = 0;            //Lap Count in Current Race
-int Race_Over = 0;                  //Race Complete Flag
-int First_Car_Finish = 0;           //Flag to Play FINISH.WAV
-int Last_Lap = 0;                   //Last Lap Flag
-unsigned short Record_Lap = 10000;  //Default Lap Record Time (Actual is called from EEPROM)
-int Record_Car_Num;                 //Array Identifer of the record setting car
-int RecordCar;                      //Lap Record Car Number (Value is called from EEPROM)
-int L1_State = 0;                   //In Track Lap Counter Monitors State, per lane
+int Current_Lap_Num = 0;           //Lap Count in Current Race
+int Race_Over = 0;                 //Race Complete Flag
+int First_Car_Finish = 0;          //Flag to Play FINISH.WAV
+int Last_Lap = 0;                  //Last Lap Flag
+unsigned long Record_Lap = 10000;  //Default Lap Record Time (Actual is called from EEPROM)
+int Record_Car_Num;                //Array Identifer of the record setting car
+int RecordCar;                     //Lap Record Car Number (Value is called from EEPROM)
+int L1_State = 0;                  //In Track Lap Counter Monitors State, per lane
 int L2_State = 0;
 int L3_State = 0;
 int L4_State = 0;
-int L1_Last_Lap = 0;                 //Flag to signal last Lap Neopixel and Sound Events, per lane
+int L1_Last_Lap = 0;  //Flag to signal last Lap Neopixel and Sound Events, per lane
 int L2_Last_Lap = 0;
 int L3_Last_Lap = 0;
 int L4_Last_Lap = 0;
-unsigned long sound_buffer;          //Time (Milliseconds) buffer to avoid sound stomping on eachother
+unsigned long sound_buffer;  //Time (Milliseconds) buffer to avoid sound stomping on eachother
 
 // Struct (or class/object) that defines everything that a car needs to have
 struct Car {
   int lane;                  // Lane the car is in
   int car_number;            // The number that represents which car type is in use
   int cur_lap;               // Current lap the car is on
-  int place;                 // Placee the car is currently in
-  unsigned short lap_time;   // The time (Milliseconds) of the last time
+  int place;                 // Place the car is currently in
+  unsigned long lap_time;    // The time (Milliseconds) of the last time
   unsigned long total_time;  // Total race time (Milliseconds)
   int finish;                // Has the car finished the race
 };
@@ -165,10 +165,10 @@ int RED_LIGHT_DELAY = 4250;      //Time for Red Lights
 int STOP_RACE_DELAY = 10000;     //Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
 
 //Relay Penality Variables
-int Penality_Lane1 = 0;     //Flag if car crosses start line before the green light, per lane
-int Penality_Lane2 = 0;
-int Penality_Lane3 = 0;
-int Penality_Lane4 = 0;
+int Penality_Lane1 = 1;  //Flag if car crosses start line before the green light, per lane
+int Penality_Lane2 = 1;
+int Penality_Lane3 = 1;
+int Penality_Lane4 = 1;
 int PENALITY_DELAY = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 //Menu Arrays
@@ -203,7 +203,6 @@ int lane_order(const void *left, const void *right) {
   }
   return 1;
 }
-
 //Read Long from EEPROM (Lap Time)
 long EEPROMReadlong(long address) {
   //Read the 4 bytes from the eeprom memory.
@@ -215,7 +214,6 @@ long EEPROMReadlong(long address) {
   //Return the recomposed long by using bitshift.
   return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }
-
 //Read Int from EEPROM (Variables for Options)
 int EEPROMReadInt(int address) {
   long two = EEPROM.read(address);
@@ -224,7 +222,6 @@ int EEPROMReadInt(int address) {
   //Return the recomposed long by using bitshift
   return ((two << 0) & 0xFFFFFF) + ((one << 8) & 0xFFFFFFFF);
 }
-
 void setup() {
   //Start Serial Monitor
   Serial.begin(9600);
@@ -264,10 +261,10 @@ void setup() {
   pinMode(START_BUTTON, INPUT);
   pinMode(STOP_BUTTON, INPUT);
   pinMode(LED_PIN, OUTPUT);
-  pinMode(LANE1LAP_TR_PIN, INPUT);
-  pinMode(LANE2LAP_TR_PIN, INPUT);
-  pinMode(LANE3LAP_TR_PIN, INPUT);
-  pinMode(LANE4LAP_TR_PIN, INPUT);
+  pinMode(LANE1LAP_TR_PIN, INPUT_PULLUP);
+  pinMode(LANE2LAP_TR_PIN, INPUT_PULLUP);
+  pinMode(LANE3LAP_TR_PIN, INPUT_PULLUP);
+  pinMode(LANE4LAP_TR_PIN, INPUT_PULLUP);
   pinMode(LANE1RELAYPIN, OUTPUT);
   pinMode(LANE2RELAYPIN, OUTPUT);
   pinMode(LANE3RELAYPIN, OUTPUT);
@@ -289,7 +286,6 @@ void setup() {
   cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .finish = 0 };
   cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .finish = 0 };
 }
-
 //Main Loop
 void loop() {
   //Record the Current time
@@ -317,7 +313,6 @@ void loop() {
     Race_Metrics();
   }
   if (Start_Race_Menu == 1) {
-    // Read all the lane pins
     L1_State = digitalRead(LANE1LAP_TR_PIN);
     L2_State = digitalRead(LANE2LAP_TR_PIN);
     L3_State = digitalRead(LANE3LAP_TR_PIN);
@@ -351,6 +346,13 @@ void loop() {
   //Record button presses to avoid rapid repeats
   Last_Back_Press = Back_Button_Press;
   Last_Start_Press = Start_Button_Press;
+
+  if (Num_of_Laps <= Current_Lap_Num) {
+    if (Last_Lap == 0) {
+      Enter_Menu = 1;
+    }
+    End_Race();
+  }
 }
 //Play Audio Files
 void playFile(const char *filename) {
@@ -362,8 +364,8 @@ void playFile(const char *filename) {
 //Navigate backwards through the race setup menu
 void Menu_Back() {
   Debounce_Time_Reference = Current_Time;
-  Enter_Menu = 1;  //Enables menu intros
-  if (Number_of_Racers_Menu == 1) {   //Accesses Options Menu
+  Enter_Menu = 1;                    //Enables menu intros
+  if (Number_of_Racers_Menu == 1) {  //Accesses Options Menu
     Options_Menu = 1;
     Number_of_Racers_Menu = 0;
   }
@@ -394,7 +396,7 @@ void Welcome_Message() {
 
   //Intro Green/Yellow/Red/Blue Neopixel Animation
   for (int j = 0; j < BootColorArray; j++) {
-    for (int i = 0; i < NUM_LEDS; i++) {   //Left Chase Animation
+    for (int i = 0; i < NUM_LEDS; i++) {  //Left Chase Animation
       leds[BootNP[i]] = CHSV(BootColors[j], 255, 255);
       i++;
       leds[BootNP[i]] = CHSV(BootColors[j], 255, 255);
@@ -524,9 +526,8 @@ void Options() {
     Debounce_Time_Reference = Current_Time;
   }
 }
-
 //Track Debounce Value Selection and Set
-void Menu_Track_Debounce() { 
+void Menu_Track_Debounce() {
   if (Enter_Menu == 1) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -574,9 +575,8 @@ void Menu_Track_Debounce() {
     Debounce_Time_Reference = Current_Time;
   }
 }
-
 //Penalty Value Selection and Set
-void Menu_Penalty() { 
+void Menu_Penalty() {
   if (Enter_Menu == 1) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -624,9 +624,8 @@ void Menu_Penalty() {
     Debounce_Time_Reference = Current_Time;
   }
 }
-
 //Stop Race Timeout Value Selection and Set
-void Menu_Stop_Race() { 
+void Menu_Stop_Race() {
   if (Enter_Menu == 1) {
     lcd.clear();
     lcd.setCursor(2, 0);
@@ -676,6 +675,10 @@ void Menu_Stop_Race() {
 }
 //Menu Section for selecting # of racers
 void Number_of_Racers() {
+  //If the Race is Over Clear All Variables from Previous Race
+  if (Race_Over == 1) {
+    ClearRace();
+  }
   if (Enter_Menu == 1) {  //Initialization of the Racers Menu
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -896,7 +899,7 @@ void Clear_Record_Lap() {
     Screen_Change = 0;
   }
   if (Start_Button_Press == 1 && Last_Start_Press == 0 && Array_Increment == 10 && Current_Time > (Debounce_Time_Reference + BUTTON_DEBOUNCE)) {  //Reset Lap Record Variables and move on to Race Start
-    Record_Lap = 10000;
+    Record_Lap = 99999;
     Record_Car_Num = 10;
     RecordCar = 10;
     LapRecord();
@@ -964,16 +967,16 @@ void Start_Race() {
     Array_Increment = 0;
   }
   if (Current_Time > (Debounce_Time_Reference + YELLOW_LIGHT_DELAY) && Array_Increment < 3) {  //Yellow light flashing sequence, unless a penality has occurred in a lane, see below
-    if (Penality_Lane1 != 1) {
+    if (Penality_Lane1 != 0) {
       leds[Lane1NP[Array_Increment]] = CHSV(BootColors[1], 255, 255);
     }
-    if (Penality_Lane2 != 1) {
+    if (Penality_Lane2 != 0) {
       leds[Lane2NP[Array_Increment]] = CHSV(BootColors[1], 255, 255);
     }
-    if (Penality_Lane3 != 1) {
+    if (Penality_Lane3 != 0) {
       leds[Lane3NP[Array_Increment]] = CHSV(BootColors[1], 255, 255);
     }
-    if (Penality_Lane4 != 1) {
+    if (Penality_Lane4 != 0) {
       leds[Lane4NP[Array_Increment]] = CHSV(BootColors[1], 255, 255);
     }
     Debounce_Time_Reference = Current_Time;
@@ -981,33 +984,33 @@ void Start_Race() {
     FastLED.show();
     Array_Increment++;
   }
-  if (L1_State == 1 || L2_State == 1 || L3_State == 1 || L4_State == 1) {  //Watches the Lanes for a premature start line cross and flags with a Penality
-    if (L1_State == 1) {
+  if (L1_State == 0 || L2_State == 0 || L3_State == 0 || L4_State == 0) {  //Watches the Lanes for a premature start line cross and flags with a Penality
+    if (L1_State == 0) {
       Penality_Lane1 = L1_State;
     }
-    if (L2_State == 1) {
+    if (L2_State == 0) {
       Penality_Lane2 = L2_State;
     }
-    if (L3_State == 1) {
+    if (L3_State == 0) {
       Penality_Lane3 = L3_State;
     }
-    if (L4_State == 1) {
+    if (L4_State == 0) {
       Penality_Lane4 = L4_State;
     }
     Penality_Start();  //If a car crosses the start line before the green light, they are flagged with a penality and will be part of this function below
   }
   if (Current_Time > (Debounce_Time_Reference + YELLOW_LIGHT_DELAY) && Array_Increment == 3) {  //Green Light for the Start of the Race
     for (int i = 0; i < 4; i++) {
-      if (Penality_Lane1 != 1) {
+      if (Penality_Lane1 != 0) {
         leds[Lane1NP[i]] = CHSV(BootColors[0], 255, 255);
       }
-      if (Penality_Lane2 != 1) {
+      if (Penality_Lane2 != 0) {
         leds[Lane2NP[i]] = CHSV(BootColors[0], 255, 255);
       }
-      if (Penality_Lane3 != 1) {
+      if (Penality_Lane3 != 0) {
         leds[Lane3NP[i]] = CHSV(BootColors[0], 255, 255);
       }
-      if (Penality_Lane4 != 1) {
+      if (Penality_Lane4 != 0) {
         leds[Lane4NP[i]] = CHSV(BootColors[0], 255, 255);
       }
       delay(10);
@@ -1022,25 +1025,25 @@ void Start_Race() {
 }
 //If a car crosses the start line before the green light, they are flagged with a penality and the red lights turn on over the lane and power is cut for the penality duration
 void Penality_Start() {
-  if (Penality_Lane1 == 1) {
+  if (Penality_Lane1 == 0) {
     digitalWrite(LANE1RELAYPIN, HIGH);
     for (int i = 0; i < 3; i++) {
       leds[Lane1NP[i]] = CHSV(BootColors[2], 255, 255);
     }
   }
-  if (Penality_Lane2 == 1) {
+  if (Penality_Lane2 == 0) {
     digitalWrite(LANE2RELAYPIN, HIGH);
     for (int i = 0; i < 3; i++) {
       leds[Lane2NP[i]] = CHSV(BootColors[2], 255, 255);
     }
   }
-  if (Penality_Lane3 == 1) {
+  if (Penality_Lane3 == 0) {
     digitalWrite(LANE3RELAYPIN, HIGH);
     for (int i = 0; i < 3; i++) {
       leds[Lane3NP[i]] = CHSV(BootColors[2], 255, 255);
     }
   }
-  if (Penality_Lane4 == 1) {
+  if (Penality_Lane4 == 0) {
     digitalWrite(LANE4RELAYPIN, HIGH);
     for (int i = 0; i < 3; i++) {
       leds[Lane4NP[i]] = CHSV(BootColors[2], 255, 255);
@@ -1135,14 +1138,23 @@ void Stop_Race() {
   digitalWrite(LANE3RELAYPIN, HIGH);
   digitalWrite(LANE4RELAYPIN, HIGH);
   delay(STOP_RACE_DELAY);
-  Welcome_Message_Menu = 1;
+  for (int i = 84; i >= 0; i--) {  //Fade out Animation
+    if (i > 1) {
+      i--;
+    }
+    LEDS.setBrightness(i);
+    FastLED.show();
+    delay(DIM_DELAY);
+  }
+  Number_of_Racers_Menu = 1;
+  Enter_Menu = 1;
   Stop_Race_Toggle = 0;
   Race_Over = 1;
 }
 //Monitors All Race Attributes
 void Race_Metrics() {
-  LEDS.setBrightness(NP_Brightness);  //Initialize Settings for race
   if (Enter_Menu == 1 && Race_Over == 0) {
+    LEDS.setBrightness(NP_Brightness);  //Initialize Settings for race
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Race In Progress");
@@ -1163,38 +1175,38 @@ void Race_Metrics() {
     Race_Metrics_Toggle = 0;
     Pause_Race_Toggle = 1;
   }
-  if (Penality_Lane1 == 1 || Penality_Lane2 == 1 || Penality_Lane3 == 1 || Penality_Lane4 == 1) {  //Watches for penailty flags on any lane, restores power to the lane(s) after penality duration
-    if (Penality_Lane1 == 1) {
+  if (Penality_Lane1 == 0 || Penality_Lane2 == 0 || Penality_Lane3 == 0 || Penality_Lane4 == 0) {  //Watches for penailty flags on any lane, restores power to the lane(s) after penality duration
+    if (Penality_Lane1 == 0) {
       if (Current_Time > (Debounce_Time_Reference + PENALITY_DELAY)) {
         digitalWrite(LANE1RELAYPIN, LOW);
-        Penality_Lane1 = 0;
+        Penality_Lane1 = 1;
         for (int i = 0; i < 4; i++) {
           leds[Lane1NP[i]] = CHSV(BootColors[0], 255, 255);
         }
       }
     }
-    if (Penality_Lane2 == 1) {
+    if (Penality_Lane2 == 0) {
       if (Current_Time > (Debounce_Time_Reference + PENALITY_DELAY)) {
         digitalWrite(LANE2RELAYPIN, LOW);
-        Penality_Lane2 = 0;
+        Penality_Lane2 = 1;
         for (int i = 0; i < 4; i++) {
           leds[Lane2NP[i]] = CHSV(BootColors[0], 255, 255);
         }
       }
     }
-    if (Penality_Lane3 == 1) {
+    if (Penality_Lane3 == 0) {
       if (Current_Time > (Debounce_Time_Reference + PENALITY_DELAY)) {
         digitalWrite(LANE3RELAYPIN, LOW);
-        Penality_Lane3 = 0;
+        Penality_Lane3 = 1;
         for (int i = 0; i < 4; i++) {
           leds[Lane3NP[i]] = CHSV(BootColors[0], 255, 255);
         }
       }
     }
-    if (Penality_Lane4 == 1) {
+    if (Penality_Lane4 == 0) {
       if (Current_Time > (Debounce_Time_Reference + PENALITY_DELAY)) {
         digitalWrite(LANE4RELAYPIN, LOW);
-        Penality_Lane4 = 0;
+        Penality_Lane4 = 1;
         for (int i = 0; i < 4; i++) {
           leds[Lane4NP[i]] = CHSV(BootColors[0], 255, 255);
         }
@@ -1206,7 +1218,8 @@ void Race_Metrics() {
   L2_State = digitalRead(LANE2LAP_TR_PIN);
   L3_State = digitalRead(LANE3LAP_TR_PIN);
   L4_State = digitalRead(LANE4LAP_TR_PIN);
-  if (L1_State == HIGH && Current_Time > (cars[0].total_time + TRACK_DEBOUNCE)) {  //When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter.
+
+  if (L1_State == LOW && Current_Time > (cars[0].total_time + TRACK_DEBOUNCE)) {  //When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter.
     cars[0].lap_time = (Current_Time - cars[0].total_time) / 10;
     cars[0].total_time = Current_Time;
     cars[0].cur_lap = cars[0].cur_lap + 1;
@@ -1214,7 +1227,7 @@ void Race_Metrics() {
     Lap_Counter();
     DetermineRacePlace();
   }
-  if (L2_State == HIGH && Current_Time > (cars[1].total_time + TRACK_DEBOUNCE)) {
+  if (L2_State == LOW && Current_Time > (cars[1].total_time + TRACK_DEBOUNCE)) {
     cars[1].lap_time = (Current_Time - cars[1].total_time) / 10;
     cars[1].total_time = Current_Time;
     cars[1].cur_lap = cars[1].cur_lap + 1;
@@ -1222,7 +1235,7 @@ void Race_Metrics() {
     Lap_Counter();
     DetermineRacePlace();
   }
-  if (L3_State == HIGH && Current_Time > (cars[2].total_time + TRACK_DEBOUNCE)) {
+  if (L3_State == LOW && Current_Time > (cars[2].total_time + TRACK_DEBOUNCE)) {
     cars[2].lap_time = (Current_Time - cars[2].total_time) / 10;
     cars[2].total_time = Current_Time;
     cars[2].cur_lap = cars[2].cur_lap + 1;
@@ -1230,7 +1243,7 @@ void Race_Metrics() {
     Lap_Counter();
     DetermineRacePlace();
   }
-  if (L4_State == HIGH && Current_Time > (cars[3].total_time + TRACK_DEBOUNCE)) {
+  if (L4_State == LOW && Current_Time > (cars[3].total_time + TRACK_DEBOUNCE)) {
     cars[3].lap_time = (Current_Time - cars[3].total_time) / 10;
     cars[3].total_time = Current_Time;
     cars[3].cur_lap = cars[3].cur_lap + 1;
@@ -1240,7 +1253,7 @@ void Race_Metrics() {
   }
   // Monitor for Lap Record
   for (int i = 0; i < Num_of_Racers; i++) {
-    if (cars[i].lap_time < Record_Lap && cars[i].lap_time > 100) {
+    if (cars[i].lap_time < Record_Lap && (cars[i].lap_time * 10) > TRACK_DEBOUNCE) {
       Record_Lap = cars[i].lap_time;
       Record_Car_Num = i;
       RecordCar = cars[Record_Car_Num].car_number;
@@ -1294,17 +1307,31 @@ void EEPROMWriteInt(int address, int value) {
 }
 //Monitor Lap Number and Display on 7 Segment Display
 void Lap_Counter() {
-  if (Current_Lap_Num < max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap)) {  //If the current lap counter is less than the highest lap, clear the display
-    Current_Lap_Num = max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap);      //update and the Lap counter
-    char LapBuffer[2];
-    dtostrf(Current_Lap_Num, 2, 0, LapBuffer);  //Convert the Lap number individual char in an array and update lap count 7 segment displays.
-    if (Current_Lap_Num < 10) {
-      LapRecNum.writeDigitAscii(3, LapBuffer[1]);
-    } else {
-      LapRecNum.writeDigitAscii(2, LapBuffer[0]);
-      LapRecNum.writeDigitAscii(3, LapBuffer[1]);
+  if (Num_of_Laps >= Current_Lap_Num) {
+    if (Current_Lap_Num < max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap)) {  //If the current lap counter is less than the highest lap, clear the display
+      Current_Lap_Num = max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap);      //update and the Lap counter
+      char LapBuffer[2];
+      dtostrf(Current_Lap_Num, 2, 0, LapBuffer);  //Convert the Lap number individual char in an array and update lap count 7 segment displays.
+      if (Current_Lap_Num < 10) {
+        LapRecNum.writeDigitAscii(3, LapBuffer[1]);
+      } else {
+        LapRecNum.writeDigitAscii(2, LapBuffer[0]);
+        LapRecNum.writeDigitAscii(3, LapBuffer[1]);
+      }
+      LapRecNum.writeDisplay();
     }
+  }
+  if (Num_of_Laps <= Current_Lap_Num) {
+    String Final_Lap = "FL";
+    char FL[2];
+    LapRecNum.clear();
     LapRecNum.writeDisplay();
+    FL[0] = Final_Lap[0];
+    FL[1] = Final_Lap[1];
+    LapRecNum.writeDigitAscii(2, FL[0]);
+    LapRecNum.writeDigitAscii(3, FL[1]);
+    LapRecNum.writeDisplay();
+    LapRecordDisplay();
   }
 }
 // Determine what place each car is in
@@ -1323,12 +1350,6 @@ void DetermineRacePlace() {
   // Sorts the cars based on how many laps completed and lowest total race time
   qsort(cars, Num_of_Racers, sizeof(struct Car), cmp_lap_and_total_time);
   Display_Leaderboard();
-  if (Num_of_Laps <= Current_Lap_Num) {
-    if (Last_Lap == 0) {
-      Enter_Menu = 1;
-    }
-    End_Race();
-  }
 }
 //Display Sorted Car Numbers and Lap times on Pole Position 7 Segmet Displays
 void Display_Leaderboard() {
@@ -1492,7 +1513,6 @@ void LapCountdown() {
   }
   FastLED.show();
 }
-
 //Final Lap and Finish Actions
 void End_Race() {
   //At Last Lap Turn all LEDs white per lane and play the Last Lap song
@@ -1541,18 +1561,7 @@ void End_Race() {
     }
   }
   FastLED.show();
-  if (Num_of_Laps <= Current_Lap_Num) {
-    String Final_Lap = "FL";
-    char FL[2];
-    LapRecNum.clear();
-    LapRecNum.writeDisplay();
-    FL[0] = Final_Lap[0];
-    FL[1] = Final_Lap[1];
-    LapRecNum.writeDigitAscii(2, FL[0]);
-    LapRecNum.writeDigitAscii(3, FL[1]);
-    LapRecNum.writeDisplay();
-    LapRecordDisplay();
-  }
+
   //Action When Car in Lane 1 Finishes the Race
   if (cars[0].cur_lap > Num_of_Laps && cars[0].finish == 0) {
     digitalWrite(LANE1RELAYPIN, HIGH);  //Cut Power to the Lane
@@ -1724,7 +1733,7 @@ void End_Race() {
     }
   }
   // End Race After all Cars Cross the Finish Line
-  if (Num_of_Racers == cars_finished) {
+  if (Num_of_Racers == cars_finished && Race_Over == 0) {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Race Finished!!");
