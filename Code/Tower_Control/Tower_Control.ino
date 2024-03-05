@@ -1393,18 +1393,18 @@ void Display_Leaderboard() {
     P1P2Num.writeDisplay();
     P3P4Num.writeDisplay();
     if (Num_Racers >= 1) {
-      P2Time.writeDigitAscii(0, P1Buffer_Time[0]);
-      P2Time.writeDigitAscii(1, P1Buffer_Time[1], true);
-      P2Time.writeDigitAscii(2, P1Buffer_Time[2]);
-      P2Time.writeDigitAscii(3, P1Buffer_Time[3]);
+      P1Time.writeDigitAscii(0, P1Buffer_Time[0]);
+      P1Time.writeDigitAscii(1, P1Buffer_Time[1], true);
+      P1Time.writeDigitAscii(2, P1Buffer_Time[2]);
+      P1Time.writeDigitAscii(3, P1Buffer_Time[3]);
       P1P2Num.writeDigitAscii(2, P1Buffer_Car[0]);
       P1P2Num.writeDigitAscii(3, P1Buffer_Car[1]);
     }
     if (Num_Racers >= 2) {
-      P1Time.writeDigitAscii(0, P2Buffer_Time[0]);
-      P1Time.writeDigitAscii(1, P2Buffer_Time[1], true);
-      P1Time.writeDigitAscii(2, P2Buffer_Time[2]);
-      P1Time.writeDigitAscii(3, P2Buffer_Time[3]);
+      P2Time.writeDigitAscii(0, P2Buffer_Time[0]);
+      P2Time.writeDigitAscii(1, P2Buffer_Time[1], true);
+      P2Time.writeDigitAscii(2, P2Buffer_Time[2]);
+      P2Time.writeDigitAscii(3, P2Buffer_Time[3]);
       P1P2Num.writeDigitAscii(0, P2Buffer_Car[0]);
       P1P2Num.writeDigitAscii(1, P2Buffer_Car[1]);
     }
