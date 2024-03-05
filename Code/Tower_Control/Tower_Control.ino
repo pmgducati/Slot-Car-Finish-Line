@@ -1343,8 +1343,6 @@ void DetermineRacePlace() {
   // Now we need to get back into lane order
   qsort(cars, Num_Racers, sizeof(struct Car), lane_order);
 
-  // Sorts the cars based on how many laps completed and lowest total race time
-  qsort(cars, Num_Racers, sizeof(struct Car), cmp_lap_and_total_time);
   Display_Leaderboard();
 }
 //Display Sorted Car Numbers and Lap times on Pole Position 7 Segmet Displays
@@ -1357,6 +1355,9 @@ void Display_Leaderboard() {
   char P2Buffer_Car[2];
   char P3Buffer_Car[2];
   char P4Buffer_Car[2];
+
+  // Sorts the cars based on how many laps completed and lowest total race time
+  qsort(cars, Num_Racers, sizeof(struct Car), cmp_lap_and_total_time);
 
   //Update Leaderboard Display Data
   P1Buffer_Car[0] = Car_Numbers[cars[0].car_number][0];
