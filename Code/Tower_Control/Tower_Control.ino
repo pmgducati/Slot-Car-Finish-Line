@@ -176,7 +176,7 @@ String Options_Selection[5] = { "Start Race", "End Race Time", "Penalty Time", "
 //Menu selection for Erasing EEPROM
 String Rec_Reset[20] = { "NO", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X", "YES", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X" };
 
-//Function to sort cars in place order
+// Function to help qsort cars in place order
 int cmp_lap_and_total_time(const void *left, const void *right) {
   struct Car *a = (struct Car *)left;
   struct Car *b = (struct Car *)right;
@@ -189,6 +189,8 @@ int cmp_lap_and_total_time(const void *left, const void *right) {
     return (b->total_time < a->total_time) - (a->total_time < b->total_time);
   }
 }
+
+// Function to help qsort cars in lane order
 int lane_order(const void *left, const void *right) {
   struct Car *a = (struct Car *)left;
   struct Car *b = (struct Car *)right;
@@ -198,6 +200,7 @@ int lane_order(const void *left, const void *right) {
   }
   return 1;
 }
+
 //Read Long from EEPROM (Lap Time)
 long EEPROMReadlong(long address) {
   //Read the 4 bytes from the eeprom memory.
