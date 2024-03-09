@@ -770,9 +770,12 @@ void Center_Text_Car() {
   Center_Value = (16 - Car_Name.length()) / 2;
   lcd.setCursor(Center_Value, 1);
 }
-//Menu Section to Select Car Numbers per Lane
+
+// Menu Section to Select Car Numbers per Lane
 void Car_Num_Lane_Assign() {
-  if (Toggle_Menu_Initialize == 1) {  //Initialization of the Cars Menu
+  int Car_Names_Size = sizeof(Car_Names) / sizeof(Car_Names[0]);
+
+  if (Toggle_Menu_Initialize == 1) {  // Initialization of the Cars Menu
     Array_Increment = 0;
     Time_Reference_Debounce = Time_Current;
     Monitor_Start = 0;
@@ -788,24 +791,26 @@ void Car_Num_Lane_Assign() {
     lcd.print(Car_Names[Array_Increment]);
     Pole_Pos_Display();
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and display the next car number
+  if (Encoder_Position_New > Encoder_Position_Old) {  // Watch the Rotary Encoder and display the next car number
     Time_Reference_Debounce = Time_Current;
     Array_Increment++;
-    if (Array_Increment > 9) {
+    if (Array_Increment >= Car_Names_Size) {
       Array_Increment = 0;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and display the previous car number
+  } else if (Encoder_Position_New < Encoder_Position_Old) {  // Watch the Rotary Encoder and display the previous car number
     Time_Reference_Debounce = Time_Current;
     Array_Increment--;
     if (Array_Increment < 0) {
-      Array_Increment = 9;
+      Array_Increment = Car_Names_Size - 1;
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Update the car number and display on LCD
+
+  // Update the car number and display on LCD
+  if (Screen_Rotary_Update == 1) {
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(0, 1);
     lcd.print("                ");
@@ -816,43 +821,20 @@ void Car_Num_Lane_Assign() {
     Time_Reference_Debounce = Time_Current;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Num_Lane == 4 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Move on to Clear Record Lap Menu
-    cars[3].car_number = Array_Increment;
-    Toggle_Menu_Initialize = 1;
+
+  if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
+
+  Toggle_Menu_Initialize = 1;
+  cars[Num_Lane - 1].car_number = Array_Increment;
+  if (Num_Lane == Num_Racers) {
     Menu_Start_Race = 1;
     Menu_Car_Num_Lane = 0;
+    return;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Num_Lane == 3 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Goto Driver Select Menu for Lane 4
-    cars[2].car_number = Array_Increment;
-    Num_Lane++;
-    Toggle_Menu_Initialize = 1;
-    Menu_Car_Num_Lane = 1;
-    if (Num_Racers == 3) {
-      Menu_Start_Race = 1;
-      Menu_Car_Num_Lane = 0;
-    }
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Num_Lane == 2 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Goto Driver Select Menu for Lane 3
-    cars[1].car_number = Array_Increment;
-    Num_Lane++;
-    Toggle_Menu_Initialize = 1;
-    Menu_Car_Num_Lane = 1;
-    if (Num_Racers == 2) {
-      Menu_Start_Race = 1;
-      Menu_Car_Num_Lane = 0;
-    }
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Num_Lane == 1 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Goto Driver Select Menu for Lane 2
-    cars[0].car_number = Array_Increment;
-    Num_Lane++;
-    Toggle_Menu_Initialize = 1;
-    Menu_Car_Num_Lane = 1;
-    if (Num_Racers == 1) {
-      Menu_Start_Race = 1;
-      Menu_Car_Num_Lane = 0;
-    }
-  }
+
+  Num_Lane++;
 }
+
 //Menu Section to Clear Lap Record from EEPROM
 void Clear_Record_Lap() {
   if (Toggle_Menu_Initialize == 1) {  //Initialization of the EEPROM Menu
