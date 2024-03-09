@@ -668,13 +668,14 @@ void Menu_Stop_Race() {
   }
 }
 
-//Menu Section for selecting # of racers
+// Menu Section for selecting # of racers
 void Number_of_Racers() {
-  //If the Race is Over Clear All Variables from Previous Race
+  // If the Race is Over Clear All Variables from Previous Race
   if (Race_Over == 1) {
     ClearRace();
   }
-  if (Toggle_Menu_Initialize == 1) {  //Initialization of the Racers Menu
+
+  if (Toggle_Menu_Initialize == 1) { // Initialization of the Racers Menu
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Number of Racers");
@@ -683,16 +684,16 @@ void Number_of_Racers() {
     Num_Racers = 4;
     Toggle_Menu_Initialize = 0;
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and add to the number of racers
+  if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add to the number of racers
     Time_Reference_Debounce = Time_Current;
     Num_Racers++;
     if (Num_Racers > 4) {
       Num_Racers = 4;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and subtract from the number of racers
+  } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract from the number of racers
     Time_Reference_Debounce = Time_Current;
     Num_Racers--;
     if (Num_Racers < 1) {
@@ -700,7 +701,8 @@ void Number_of_Racers() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Update the number of racers and display on LCD
+
+  if (Screen_Rotary_Update == 1) { // Update the number of racers and display on LCD
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(7, 1);
     lcd.print(Num_Racers);
@@ -708,13 +710,15 @@ void Number_of_Racers() {
     Encoder_Position_Old = Encoder_Position_New;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Move on to Number of Laps Menu
+
+  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Move on to Number of Laps Menu
     Time_Reference_Debounce = Time_Current;
     Menu_Number_of_Racers = 0;
     Menu_Number_of_Laps = 1;
     Toggle_Menu_Initialize = 1;
   }
 }
+
 //Menu Section to Specify Number of Laps
 void Number_of_Laps() {
   if (Toggle_Menu_Initialize == 1) {  //Initialization of the Laps Menu
