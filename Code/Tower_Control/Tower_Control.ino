@@ -512,7 +512,7 @@ void Options() {
   }
 }
 
-//Track Debounce Value Selection and Set
+// Track Debounce Value Selection and Set
 void Menu_Debounce_Track() {
   if (Toggle_Menu_Initialize == 1) {
     lcd.clear();
@@ -522,16 +522,16 @@ void Menu_Debounce_Track() {
     lcd.print(Debounce_Track);
     Toggle_Menu_Initialize = 0;
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and add
+  if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add
     Time_Reference_Debounce = Time_Current;
     Debounce_Track = Debounce_Track + 500;
     if (Debounce_Track > 5000) {
       Debounce_Track = 5000;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and subtract
+  } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract
     Time_Reference_Debounce = Time_Current;
     Debounce_Track = Debounce_Track - 500;
     if (Debounce_Track < 500) {
@@ -539,7 +539,8 @@ void Menu_Debounce_Track() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Scroll though the available option in the menu
+
+  if (Screen_Rotary_Update == 1) { // Scroll though the available option in the menu
     playSdWav1.play("TICK.WAV");
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -550,7 +551,8 @@ void Menu_Debounce_Track() {
     Encoder_Position_Old = Encoder_Position_New;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Set the desired value for Track Debounce and save to EEPROM
+
+  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Track Debounce and save to EEPROM
     EEPROMWriteInt(0x08, Debounce_Track);
     Options_Debounce_Track = 0;
     Menu_Options = 1;
@@ -561,6 +563,7 @@ void Menu_Debounce_Track() {
     Time_Reference_Debounce = Time_Current;
   }
 }
+
 //Penalty Value Selection and Set
 void Menu_Penalty() {
   if (Toggle_Menu_Initialize == 1) {
