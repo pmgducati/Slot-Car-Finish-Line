@@ -369,7 +369,7 @@ void Menu_Back() {
     Menu_Number_of_Racers = 1;
     Menu_Number_of_Laps = 0;
   }
-  if (Menu_Car_Num_Lane == 1) {  //Bakc to number of Laps
+  if (Menu_Car_Num_Lane == 1) {  //Back to number of Laps
     Num_Lane = 1;
     Menu_Number_of_Laps = 1;
     Menu_Car_Num_Lane = 0;
