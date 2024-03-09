@@ -434,9 +434,12 @@ void Rotary_Encoder() {
     Encoder_Position_Old = Encoder_Position_New;
   }
 }
-//Options Main Menu Navigation
+
+// Options Main Menu Navigation
 void Options() {
-  if (Toggle_Menu_Initialize == 1) {  //Menu Initialization
+  int Options_Selection_Size = sizeof(Options_Selection) / sizeof(Options_Selection[0]);
+
+  if (Toggle_Menu_Initialize == 1) {  // Menu Initialization
     lcd.clear();
     lcd.setCursor(4, 0);
     lcd.print("Options");
@@ -445,16 +448,16 @@ void Options() {
     Array_Increment = 0;
     Toggle_Menu_Initialize = 0;
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and add
+  if (Encoder_Position_New > Encoder_Position_Old) {  // Watch the Rotary Encoder and add
     Time_Reference_Debounce = Time_Current;
     Array_Increment++;
-    if (Array_Increment > 4) {
-      Array_Increment = 4;
+    if (Array_Increment >= Options_Selection_Size) {
+      Array_Increment = Options_Selection_Size - 1;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and subtract
+  } else if (Encoder_Position_New < Encoder_Position_Old) {  // Watch the Rotary Encoder and subtract
     Time_Reference_Debounce = Time_Current;
     Array_Increment--;
     if (Array_Increment < 0) {
@@ -462,7 +465,8 @@ void Options() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Scroll though the available option in the menu
+
+  if (Screen_Rotary_Update == 1) {  // Scroll though the available options in the menu
     playSdWav1.play("TICK.WAV");
     String Option_Name = Options_Selection[Array_Increment];
     Center_Value = (16 - Option_Name.length()) / 2;
@@ -475,52 +479,36 @@ void Options() {
     Encoder_Position_Old = Encoder_Position_New;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button) && Array_Increment == 4) {  //Move on to Erase Lap Record
-    Menu_Options = 0;
-    Options_Clear_Lap_Record = 1;
-    Toggle_Menu_Initialize = 1;
-    lcd.clear();
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
-    Time_Reference_Debounce = Time_Current;
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button) && Array_Increment == 3) {  //Move on to Track Debounce Setting
-    Menu_Options = 0;
-    Options_Debounce_Track = 1;
-    Toggle_Menu_Initialize = 1;
-    lcd.clear();
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
-    Time_Reference_Debounce = Time_Current;
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button) && Array_Increment == 2) {  //Move on to Penalty Time Setting
-    Menu_Options = 0;
-    Options_Penalty = 1;
-    Toggle_Menu_Initialize = 1;
-    lcd.clear();
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
-    Time_Reference_Debounce = Time_Current;
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button) && Array_Increment == 1) {  //Move on to End Race Time Setting
-    Menu_Options = 0;
-    Options_Stop_Race = 1;
-    Toggle_Menu_Initialize = 1;
-    lcd.clear();
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
-    Time_Reference_Debounce = Time_Current;
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button) && Array_Increment == 0) {  //Move on to Number of Racers Menu
-    Menu_Options = 0;
-    Menu_Number_of_Racers = 1;
-    Toggle_Menu_Initialize = 1;
-    lcd.clear();
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
-    Time_Reference_Debounce = Time_Current;
+
+  if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
+
+  Menu_Options = 0;
+  Toggle_Menu_Initialize = 1;
+  lcd.clear();
+  Encoder_Position_New = myEnc.read();
+  Encoder_Position_Old = Encoder_Position_New;
+  Time_Reference_Debounce = Time_Current;
+
+  // Determine which menu to move to
+  switch (Array_Increment) {
+    case 0: // Move on to Number of Racers Menu
+        Menu_Number_of_Racers = 1;
+        break;
+    case 1: // Move on to End Race Time Setting
+        Options_Stop_Race = 1;
+        break;
+    case 2: // Move on to Penalty Time Setting
+        Options_Penalty = 1;
+        break;
+    case 3: // Move on to Track Debounce Setting
+        Options_Debounce_Track = 1;
+        break;
+    case 4: // Move on to Erase Lap Record
+        Options_Clear_Lap_Record = 1;
+        break;
   }
 }
+
 //Track Debounce Value Selection and Set
 void Menu_Debounce_Track() {
   if (Toggle_Menu_Initialize == 1) {
@@ -808,8 +796,7 @@ void Car_Num_Lane_Assign() {
     Screen_Rotary_Update = 1;
   }
 
-  // Update the car number and display on LCD
-  if (Screen_Rotary_Update == 1) {
+  if (Screen_Rotary_Update == 1) { // Update the car number and display on LCD
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(0, 1);
     lcd.print("                ");
