@@ -616,7 +616,7 @@ void Menu_Penalty() {
   }
 }
 
-//Stop Race Timeout Value Selection and Set
+// Stop Race Timeout Value Selection and Set
 void Menu_Stop_Race() {
   if (Toggle_Menu_Initialize == 1) {
     lcd.clear();
@@ -626,16 +626,16 @@ void Menu_Stop_Race() {
     lcd.print(Delay_Stop_Race);
     Toggle_Menu_Initialize = 0;
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and add
+  if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add
     Time_Reference_Debounce = Time_Current;
     Delay_Stop_Race = Delay_Stop_Race + 500;
     if (Delay_Stop_Race > 10000) {
       Delay_Stop_Race = 10000;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and subtract
+  } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract
     Time_Reference_Debounce = Time_Current;
     Delay_Stop_Race = Delay_Stop_Race - 500;
     if (Delay_Stop_Race < 1000) {
@@ -643,7 +643,8 @@ void Menu_Stop_Race() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Scroll though the available option in the menu
+
+  if (Screen_Rotary_Update == 1) { // Scroll though the available option in the menu
     playSdWav1.play("TICK.WAV");
     lcd.clear();
     lcd.setCursor(2, 0);
@@ -654,7 +655,8 @@ void Menu_Stop_Race() {
     Encoder_Position_Old = Encoder_Position_New;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Set the desired value for Penalty Duration and save to EEPROM
+
+  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Penalty Duration and save to EEPROM
     EEPROMWriteInt(0x06, Delay_Stop_Race);
     Options_Stop_Race = 0;
     Menu_Options = 1;
@@ -665,6 +667,7 @@ void Menu_Stop_Race() {
     Time_Reference_Debounce = Time_Current;
   }
 }
+
 //Menu Section for selecting # of racers
 void Number_of_Racers() {
   //If the Race is Over Clear All Variables from Previous Race
