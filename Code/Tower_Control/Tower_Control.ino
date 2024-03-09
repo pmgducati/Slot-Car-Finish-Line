@@ -80,7 +80,6 @@ int Menu_Number_of_Racers = 0;
 int Menu_Number_of_Laps = 0;
 int Menu_Car_Num_Lane = 0;
 int Menu_Start_Race = 0;
-int Options_Erase_Lap_Record = 0;
 int Options_Stop_Race = 0;
 int Options_Clear_Lap_Record = 0;
 int Options_Debounce_Track = 0;
@@ -886,7 +885,6 @@ void Clear_Record_Lap() {
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Array_Increment != 10 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Do Not erase EEPROM and move on to Race Start
     Toggle_Menu_Initialize = 1;
     Menu_Options = 1;
-    Options_Erase_Lap_Record = 0;
     Options_Clear_Lap_Record = 0;
   }
 }
