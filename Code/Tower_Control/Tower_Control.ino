@@ -840,9 +840,9 @@ void Car_Num_Lane_Assign() {
   Num_Lane++;
 }
 
-//Menu Section to Clear Lap Record from EEPROM
+// Menu Section to Clear Lap Record from EEPROM
 void Clear_Record_Lap() {
-  if (Toggle_Menu_Initialize == 1) {  //Initialization of the EEPROM Menu
+  if (Toggle_Menu_Initialize == 1) { // Initialization of the EEPROM Menu
     Array_Increment = 0;
     Time_Reference_Debounce = Time_Current;
 
@@ -854,16 +854,16 @@ void Clear_Record_Lap() {
     lcd.setCursor(7, 1);
     lcd.print(Rec_Reset[Array_Increment]);
   }
+  
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and display the next Next Option
+  if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and display the next Next Option
     Time_Reference_Debounce = Time_Current;
     Array_Increment++;
     if (Array_Increment > 19) {
       Array_Increment = 0;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and display the previous Option
+  } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and display the previous Option
     Time_Reference_Debounce = Time_Current;
     Array_Increment--;
     if (Array_Increment < 0) {
@@ -871,7 +871,8 @@ void Clear_Record_Lap() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Update the Next Option and display on LCD
+
+  if (Screen_Rotary_Update == 1) { // Update the Next Option and display on LCD
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(1, 1);
     lcd.print("                ");
@@ -881,19 +882,22 @@ void Clear_Record_Lap() {
     Time_Reference_Debounce = Time_Current;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Array_Increment == 10 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Reset Lap Record Variables and move on to Race Start
+
+  if Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button) { return; }
+
+  if (Array_Increment == 10) { // Reset Lap Record Variables and move on to Race Start
     Record_Lap = 99999;
     Record_Car_Num = 10;
     Record_Car = 10;
     LapRecord();
     LapRecordDisplay();
-  }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Array_Increment != 10 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Do Not erase EEPROM and move on to Race Start
+  } else { // Do Not erase EEPROM and move on to Race Start
     Toggle_Menu_Initialize = 1;
     Menu_Options = 1;
     Options_Clear_Lap_Record = 0;
   }
 }
+
 //Centers the EEPROM Menu text on the LCD
 void Center_Text_EEPROM() {
   String EEPROM_Name = Rec_Reset[Array_Increment];
