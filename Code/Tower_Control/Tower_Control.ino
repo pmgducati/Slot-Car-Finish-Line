@@ -769,7 +769,8 @@ void Number_of_Laps() {
     Toggle_Menu_Initialize = 1;
   }
 }
-//Centers the car's number on the LCD
+
+// Centers the car's number on the LCD
 void Center_Text_Car() {
   String Car_Name = Car_Names[Array_Increment];
   Center_Value = (16 - Car_Name.length()) / 2;
