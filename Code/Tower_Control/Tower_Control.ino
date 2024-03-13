@@ -719,9 +719,9 @@ void Number_of_Racers() {
   }
 }
 
-//Menu Section to Specify Number of Laps
+// Menu Section to Specify Number of Laps
 void Number_of_Laps() {
-  if (Toggle_Menu_Initialize == 1) {  //Initialization of the Laps Menu
+  if (Toggle_Menu_Initialize == 1) { // Initialization of the Laps Menu
     lcd.clear();
     lcd.setCursor(1, 0);
     lcd.print("Number of Laps");
@@ -731,16 +731,16 @@ void Number_of_Laps() {
     Monitor_Start = 0;
     Toggle_Menu_Initialize = 0;
   }
+
   Rotary_Encoder();
-  if (Encoder_Position_New > Encoder_Position_Old) {  //Watch the Rotary Encoder and add to the number of Laps
+  if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add to the number of Laps
     Num_Laps++;
     Time_Reference_Debounce = Time_Current;
     if (Num_Laps > 99) {
       Num_Laps = 5;
     }
     Screen_Rotary_Update = 1;
-  }
-  if (Encoder_Position_New < Encoder_Position_Old) {  //Watch the Rotary Encoder and subtract from the number of Laps
+  } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract from the number of Laps
     Time_Reference_Debounce = Time_Current;
     Num_Laps--;
     if (Num_Laps < 5) {
@@ -748,7 +748,8 @@ void Number_of_Laps() {
     }
     Screen_Rotary_Update = 1;
   }
-  if (Screen_Rotary_Update == 1) {  //Update the number of laps and display on LCD
+
+  if (Screen_Rotary_Update == 1) { // Update the number of laps and display on LCD
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(7, 1);
     lcd.print(Num_Laps);
@@ -760,7 +761,8 @@ void Number_of_Laps() {
     Encoder_Position_Old = Encoder_Position_New;
     Screen_Rotary_Update = 0;
   }
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Move on to Car Number Select Menu
+
+  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Move on to Car Number Select Menu
     Time_Reference_Debounce = Time_Current;
     Menu_Number_of_Laps = 0;
     Menu_Car_Num_Lane = 1;
