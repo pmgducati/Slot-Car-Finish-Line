@@ -888,7 +888,7 @@ void Clear_Record_Lap() {
     Time_Reference_Debounce = Time_Current;
   }
 
-  if Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button) { return; }
+  if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
 
   if (Array_Increment == 10) { // Reset Lap Record Variables and move on to Race Start
     Record_Lap = 99999;
