@@ -84,7 +84,6 @@ int Options_Stop_Race = 0;
 int Options_Clear_Lap_Record = 0;
 int Options_Debounce_Track = 0;
 int Options_Penalty = 0;
-int Screen_Rotary_Update = 0;
 int Array_Increment = 0;
 int Toggle_Menu_Initialize = 1;
 int Toggle_Race_Metrics = 0;
@@ -441,6 +440,7 @@ void Rotary_Encoder() {
 // Options Main Menu Navigation
 void Options() {
   int Options_Selection_Size = sizeof(Options_Selection) / sizeof(Options_Selection[0]);
+  int Screen_Rotary_Update = 0;
 
   if (Toggle_Menu_Initialize == 1) {  // Menu Initialization
     lcd.clear();
@@ -480,7 +480,6 @@ void Options() {
     lcd.print(Options_Selection[Array_Increment]);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
@@ -514,6 +513,8 @@ void Options() {
 
 // Track Debounce Value Selection and Set
 void Menu_Debounce_Track() {
+  int Screen_Rotary_Update = 0;
+
   if (Toggle_Menu_Initialize == 1) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -549,7 +550,6 @@ void Menu_Debounce_Track() {
     lcd.print(Debounce_Track);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Track Debounce and save to EEPROM
@@ -566,6 +566,8 @@ void Menu_Debounce_Track() {
 
 // Penalty Value Selection and Set
 void Menu_Penalty() {
+  int Screen_Rotary_Update = 0;
+
   if (Toggle_Menu_Initialize == 1) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -601,7 +603,6 @@ void Menu_Penalty() {
     lcd.print(Delay_Penality);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Penalty Duration and save to EEPROM
@@ -618,6 +619,8 @@ void Menu_Penalty() {
 
 // Stop Race Timeout Value Selection and Set
 void Menu_Stop_Race() {
+  int Screen_Rotary_Update = 0;
+
   if (Toggle_Menu_Initialize == 1) {
     lcd.clear();
     lcd.setCursor(2, 0);
@@ -653,7 +656,6 @@ void Menu_Stop_Race() {
     lcd.print(Delay_Stop_Race);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Penalty Duration and save to EEPROM
@@ -670,6 +672,8 @@ void Menu_Stop_Race() {
 
 // Menu Section for selecting # of racers
 void Number_of_Racers() {
+  int Screen_Rotary_Update = 0;
+
   // If the Race is Over Clear All Variables from Previous Race
   if (Race_Over == 1) {
     ClearRace();
@@ -708,7 +712,6 @@ void Number_of_Racers() {
     lcd.print(Num_Racers);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Move on to Number of Laps Menu
@@ -721,6 +724,8 @@ void Number_of_Racers() {
 
 // Menu Section to Specify Number of Laps
 void Number_of_Laps() {
+  int Screen_Rotary_Update = 0;
+
   if (Toggle_Menu_Initialize == 1) { // Initialization of the Laps Menu
     lcd.clear();
     lcd.setCursor(1, 0);
@@ -759,7 +764,6 @@ void Number_of_Laps() {
     }
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Move on to Car Number Select Menu
@@ -780,6 +784,7 @@ void Center_Text_Car() {
 // Menu Section to Select Car Numbers per Lane
 void Car_Num_Lane_Assign() {
   int Car_Names_Size = sizeof(Car_Names) / sizeof(Car_Names[0]);
+  int Screen_Rotary_Update = 0;
 
   if (Toggle_Menu_Initialize == 1) {  // Initialization of the Cars Menu
     Array_Increment = 0;
@@ -824,7 +829,6 @@ void Car_Num_Lane_Assign() {
     Pole_Pos_Display();
     Encoder_Position_Old = Encoder_Position_New;
     Time_Reference_Debounce = Time_Current;
-    Screen_Rotary_Update = 0;
   }
 
   if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
@@ -842,6 +846,8 @@ void Car_Num_Lane_Assign() {
 
 // Menu Section to Clear Lap Record from EEPROM
 void Clear_Record_Lap() {
+  int Screen_Rotary_Update = 0;
+
   if (Toggle_Menu_Initialize == 1) { // Initialization of the EEPROM Menu
     Array_Increment = 0;
     Time_Reference_Debounce = Time_Current;
@@ -854,7 +860,7 @@ void Clear_Record_Lap() {
     lcd.setCursor(7, 1);
     lcd.print(Rec_Reset[Array_Increment]);
   }
-  
+
   Rotary_Encoder();
   if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and display the next Next Option
     Time_Reference_Debounce = Time_Current;
@@ -880,7 +886,6 @@ void Clear_Record_Lap() {
     lcd.print(Rec_Reset[Array_Increment]);
     Encoder_Position_Old = Encoder_Position_New;
     Time_Reference_Debounce = Time_Current;
-    Screen_Rotary_Update = 0;
   }
 
   if Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button) { return; }
@@ -928,6 +933,7 @@ void Pole_Pos_Display() {
     P1P2Num.writeDisplay();
   }
 }
+
 //Race Start LED Animation/Sounds and Penalty Monitoring
 void Start_Race() {
   if (Toggle_Menu_Initialize == 1) {  //Initialization of the Race Start Sequence
