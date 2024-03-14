@@ -959,6 +959,7 @@ void Start_Race() {
     Time_Reference_Debounce = Time_Current;
     Array_Increment = 0;
   }
+
   if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment < 3) {  //Yellow light flashing sequence, unless a penality has occurred in a lane, see below
     if (Penality_Lane1 != 0) {
       leds[NP_Lane_1[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
@@ -977,6 +978,7 @@ void Start_Race() {
     FastLED.show();
     Array_Increment++;
   }
+
   if (L1_State == 0 || L2_State == 0 || L3_State == 0 || L4_State == 0) {  //Watches the Lanes for a premature start line cross and flags with a Penality
     if (L1_State == 0) {
       Penality_Lane1 = L1_State;
@@ -992,6 +994,7 @@ void Start_Race() {
     }
     Penality_Start();  //If a car crosses the start line before the green light, they are flagged with a penality and will be part of this function below
   }
+
   if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment == 3) {  //Green Light for the Start of the Race
     for (int i = 0; i < 4; i++) {
       if (Penality_Lane1 != 0) {
