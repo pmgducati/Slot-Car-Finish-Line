@@ -898,13 +898,14 @@ void Clear_Record_Lap() {
   }
 }
 
-//Centers the EEPROM Menu text on the LCD
+// Centers the EEPROM Menu text on the LCD
 void Center_Text_EEPROM() {
   String EEPROM_Name = Rec_Reset[Array_Increment];
   Center_Value = (16 - EEPROM_Name.length()) / 2;
   lcd.setCursor(Center_Value, 1);
 }
-//Inital Display of Car Numbers on 7 Segment Displays
+
+// Inital Display of Car Numbers on 7 Segment Displays
 void Pole_Pos_Display() {
   if (Num_Lane == 4) {
     P3P4Num.writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
