@@ -37,14 +37,10 @@ int NP_Lane_2[4] = { 8, 7, 6, 13 };                                           //
 int NP_Lane_3[4] = { 5, 4, 3, 14 };                                           //Lane Three LEDs
 int NP_Lane_4[4] = { 2, 1, 0, 15 };                                           //Lane Four LEDs
 
-//7 Seg LED Assignments
-Adafruit_AlphaNum4 P1P2Num = Adafruit_AlphaNum4();     //Pole Position Car Numbers 1 & 2
-Adafruit_AlphaNum4 P3P4Num = Adafruit_AlphaNum4();     //Pole Position Car Numbers 3 & 4
+// 7 Seg LED Assignments
+Adafruit_AlphaNum4 Player_PolePositions[4] = { Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4() }; // Pole Position Car Numbers 1 - 4 ((1 & 2) + (3 & 4))
+Adafruit_AlphaNum4 Player_Times[4] = { Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4() };         // Pole Position Time 1 - 4
 Adafruit_AlphaNum4 LapRecNum = Adafruit_AlphaNum4();   //Lap Counter and Lap Record Car Number
-Adafruit_AlphaNum4 P1Time = Adafruit_AlphaNum4();      //Pole Position Time 1
-Adafruit_AlphaNum4 P2Time = Adafruit_AlphaNum4();      //Pole Position Time 2
-Adafruit_AlphaNum4 P3Time = Adafruit_AlphaNum4();      //Pole Position Time 3
-Adafruit_AlphaNum4 P4Time = Adafruit_AlphaNum4();      //Pole Position Time 4
 Adafruit_AlphaNum4 LapTimeRec = Adafruit_AlphaNum4();  //Lap Record Time
 
 //Pin Assignments
@@ -239,17 +235,19 @@ void setup() {
   Delay_Stop_Race = EEPROMReadInt(0x06);
   Debounce_Track = EEPROMReadInt(0x10);
 
-  //Setup the 7-Segment LED Panels
-  P1P2Num.begin(0x70);     // pass in the address for the Place 1 and 2 Car Numbers
-  P3P4Num.begin(0x71);     // pass in the address for the Place 3 and 4 Car Numbers
-  LapRecNum.begin(0x72);   // pass in the address for the Lap Counter and Lap Record Car Number
-  LapTimeRec.begin(0x77);  // pass in the address for the Lap Record Time
-  P1Time.begin(0x73);      // pass in the address for the Place 1 Lap Time
-  P2Time.begin(0x74);      // pass in the address for the Place 2 Lap Time
-  P3Time.begin(0x75);      // pass in the address for the Place 3 Lap Time
-  P4Time.begin(0x76);      // pass in the address for the Place 4 Lap Time
+  // Set up the 7-Segment LED Panels
+  Player_PolePositions[0].begin(0x70);  // pass in the address for the Place 1 and 2 Car Numbers
+  Player_PolePositions[1].begin(0x70);  // pass in the address for the Place 1 and 2 Car Numbers
+  Player_PolePositions[2].begin(0x71);  // pass in the address for the Place 3 and 4 Car Numbers
+  Player_PolePositions[3].begin(0x71);  // pass in the address for the Place 3 and 4 Car Numbers
+  LapRecNum.begin(0x72);                // pass in the address for the Lap Counter and Lap Record Car Number
+  LapTimeRec.begin(0x77);               // pass in the address for the Lap Record Time
+  Player_Times[0].begin(0x73);          // pass in the address for the Place 1 Lap Time
+  Player_Times[1].begin(0x74);          // pass in the address for the Place 2 Lap Time
+  Player_Times[2].begin(0x75);          // pass in the address for the Place 3 Lap Time
+  Player_Times[3].begin(0x76);          // pass in the address for the Place 4 Lap Time
 
-  // set up the LCD's number of rows and columns and enable the backlight
+  // Set up the LCD's number of rows and columns and enable the backlight
   lcd.begin(16, 2);
   lcd.setBacklight(HIGH);
 
@@ -913,25 +911,13 @@ void Center_Text_EEPROM() {
 
 // Inital Display of Car Numbers on 7 Segment Displays
 void Pole_Pos_Display() {
-  if (Num_Lane == 4) {
-    P3P4Num.writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
-    P3P4Num.writeDigitAscii(1, Car_Numbers[Array_Increment][1]);
-    P3P4Num.writeDisplay();
-  }
-  if (Num_Lane == 3) {
-    P3P4Num.writeDigitAscii(2, Car_Numbers[Array_Increment][0]);
-    P3P4Num.writeDigitAscii(3, Car_Numbers[Array_Increment][1]);
-    P3P4Num.writeDisplay();
-  }
-  if (Num_Lane == 2) {
-    P1P2Num.writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
-    P1P2Num.writeDigitAscii(1, Car_Numbers[Array_Increment][1]);
-    P1P2Num.writeDisplay();
-  }
-  if (Num_Lane == 1) {
-    P1P2Num.writeDigitAscii(2, Car_Numbers[Array_Increment][0]);
-    P1P2Num.writeDigitAscii(3, Car_Numbers[Array_Increment][1]);
-    P1P2Num.writeDisplay();
+  // If it's an odd numbered Num_Lane, display the car number to the left, even numbered player to the right
+  if (Num_Lane % 2 != 0) {
+    Player_PolePositions[Num_Lane - 1].writeDigitAscii(2, Car_Numbers[Array_Increment][0]);
+    Player_PolePositions[Num_Lane - 1].writeDigitAscii(3, Car_Numbers[Array_Increment][1]);
+  } else {
+    Player_PolePositions[Num_Lane - 1].writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
+    Player_PolePositions[Num_Lane - 1].writeDigitAscii(1, Car_Numbers[Array_Increment][1]);
   }
 }
 
@@ -1262,7 +1248,7 @@ void Race_Metrics() {
 // Reads Lap Record from EEPROM and Displays on 7 Sgement Displays
 void LapRecordDisplay() {
   char LapTimeRec_String[5];
-  unsigned short LapTimeRec_Display = (Record_Lap > 999999 ? 999999 : Record_Lap)/100; // Limit the lap time we'll display to ###.# seconds from milliseconds
+  unsigned short LapTimeRec_Display = (Record_Lap > 999999 ? 999999 : Record_Lap) / 100; // Limit the lap time we'll display to ###.# seconds from milliseconds
   sprintf(LapTimeRec_String, "%4hu", LapTimeRec_Display);
 
   // Write the car who has the lap record
@@ -1355,90 +1341,56 @@ void DetermineRacePlace() {
 
 // Display Sorted Car Numbers and Lap times on Pole Position 7 Segmet Displays
 void Display_Leaderboard() {
+  // Nothing to update if we're only on the first lap
+  if (Current_Lap_Num < 2) { return; }
+
   // Sorts the cars based on how many laps completed and lowest total race time
   qsort(cars, Num_Racers, sizeof(struct Car), cmp_lap_and_total_time);
 
-  // Update Leaderboard Display Data
-  // Declare our lap time strings
-  char P1LapTime_String[5];
-  char P2LapTime_String[5];
-  char P3LapTime_String[5];
-  char P4LapTime_String[5];
+  // Declare our lap time variables
+  unsigned short PlayerLapTimes_Display[4];
+  char PlayerLapTimes_Strings[4][5];
 
-  // Limit the lap time we'll display to ###.# seconds from milliseconds
-  unsigned short P1LapTime_Display = (cars[0].lap_time > 999999 ? 999999 : cars[0].lap_time)/100;
-  unsigned short P2LapTime_Display = (cars[1].lap_time > 999999 ? 999999 : cars[1].lap_time)/100;
-  unsigned short P3LapTime_Display = (cars[2].lap_time > 999999 ? 999999 : cars[2].lap_time)/100;
-  unsigned short P4LapTime_Display = (cars[3].lap_time > 999999 ? 999999 : cars[3].lap_time)/100;
+  // Clear out the digital displays to prepare for writing the new data
+  int Player_Index;
+  for (int Player = 1; Player <= Num_Racers; Player++) {
+    Player_Index = Player - 1;
+    Player_Times[Player_Index].clear();
+    Player_Times[Player_Index].writeDisplay();
+    Player_PolePositions[Player_Index].clear();
+    Player_PolePositions[Player_Index].writeDisplay();
+  }
 
-  // Convert our lap times to strings for display
-  sprintf(P1LapTime_String, "%4hu", P1LapTime_Display);
-  sprintf(P2LapTime_String, "%4hu", P2LapTime_Display);
-  sprintf(P3LapTime_String, "%4hu", P3LapTime_Display);
-  sprintf(P4LapTime_String, "%4hu", P4LapTime_Display);
+  // Write all the player lap times and pole positions
+  for (int Player = 1; Player <= Num_Racers; Player++) {
+    Player_Index = Player - 1;
+    // Limit the lap time we'll display to ###.# seconds from milliseconds
+    PlayerLapTimes_Display[Player_Index] = (cars[Player_Index].lap_time > 999999 ? 999999 : cars[Player_Index].lap_time) / 100;
+    sprintf(PlayerLapTimes_Strings[Player_Index], "%4hu", PlayerLapTimes_Display[Player_Index]);
 
-  // Store the car numbers of each place
-  String P1Car_Num = String(Car_Numbers[cars[0].car_number]);
-  String P2Car_Num = String(Car_Numbers[cars[1].car_number]);
-  String P3Car_Num = String(Car_Numbers[cars[2].car_number]);
-  String P4Car_Num = String(Car_Numbers[cars[3].car_number]);
+    // Write the player lap time to the ascii buffer
+    Player_Times[Player_Index].writeDigitAscii(0, PlayerLapTimes_Strings[Player_Index][0]);
+    Player_Times[Player_Index].writeDigitAscii(1, PlayerLapTimes_Strings[Player_Index][1], true);
+    Player_Times[Player_Index].writeDigitAscii(2, PlayerLapTimes_Strings[Player_Index][2]);
+    Player_Times[Player_Index].writeDigitAscii(3, PlayerLapTimes_Strings[Player_Index][3]);
+
+    // If it's an odd numbered player, display the car number to the left, even numbered player to the right
+    if (Player % 2 != 0) {
+      Player_PolePositions[Player_Index].writeDigitAscii(2, Car_Numbers[cars[Player_Index].car_number][0]);
+      Player_PolePositions[Player_Index].writeDigitAscii(3, Car_Numbers[cars[Player_Index].car_number][1]);
+    } else {
+      Player_PolePositions[Player_Index].writeDigitAscii(0, Car_Numbers[cars[Player_Index].car_number][0]);
+      Player_PolePositions[Player_Index].writeDigitAscii(1, Car_Numbers[cars[Player_Index].car_number][1]);
+    }
+
+    // Write the player lap time and pole position to the display
+    Player_Times[Player_Index].writeDisplay();
+    Player_PolePositions[Player_Index].writeDisplay();
+  }
 
   // Now we need to get back into lane order
   qsort(cars, Num_Racers, sizeof(struct Car), lane_order);
 
-  if (Current_Lap_Num < 2) { return; }
-
-  // Refresh Leaderboard Display
-  P1Time.clear();
-  P2Time.clear();
-  P3Time.clear();
-  P4Time.clear();
-  P1Time.writeDisplay();
-  P2Time.writeDisplay();
-  P3Time.writeDisplay();
-  P4Time.writeDisplay();
-  P1P2Num.clear();
-  P3P4Num.clear();
-  P1P2Num.writeDisplay();
-  P3P4Num.writeDisplay();
-  if (Num_Racers >= 1) {
-    P1Time.writeDigitAscii(0, P1LapTime_String[0]);
-    P1Time.writeDigitAscii(1, P1LapTime_String[1], true);
-    P1Time.writeDigitAscii(2, P1LapTime_String[2]);
-    P1Time.writeDigitAscii(3, P1LapTime_String[3]);
-    P1P2Num.writeDigitAscii(2, P1Car_Num[0]);
-    P1P2Num.writeDigitAscii(3, P1Car_Num[1]);
-  }
-  if (Num_Racers >= 2) {
-    P2Time.writeDigitAscii(0, P2LapTime_String[0]);
-    P2Time.writeDigitAscii(1, P2LapTime_String[1], true);
-    P2Time.writeDigitAscii(2, P2LapTime_String[2]);
-    P2Time.writeDigitAscii(3, P2LapTime_String[3]);
-    P1P2Num.writeDigitAscii(0, P2Car_Num[0]);
-    P1P2Num.writeDigitAscii(1, P2Car_Num[1]);
-  }
-  if (Num_Racers >= 3) {
-    P3Time.writeDigitAscii(0, P3LapTime_String[0]);
-    P3Time.writeDigitAscii(1, P3LapTime_String[1], true);
-    P3Time.writeDigitAscii(2, P3LapTime_String[2]);
-    P3Time.writeDigitAscii(3, P3LapTime_String[3]);
-    P3P4Num.writeDigitAscii(2, P3Car_Num[0]);
-    P3P4Num.writeDigitAscii(3, P3Car_Num[1]);
-  }
-  if (Num_Racers == 4) {
-    P4Time.writeDigitAscii(0, P4LapTime_String[0]);
-    P4Time.writeDigitAscii(1, P4LapTime_String[1], true);
-    P4Time.writeDigitAscii(2, P4LapTime_String[2]);
-    P4Time.writeDigitAscii(3, P4LapTime_String[3]);
-    P3P4Num.writeDigitAscii(0, P4Car_Num[0]);
-    P3P4Num.writeDigitAscii(1, P4Car_Num[0]);
-  }
-  P1Time.writeDisplay();
-  P2Time.writeDisplay();
-  P3Time.writeDisplay();
-  P4Time.writeDisplay();
-  P1P2Num.writeDisplay();
-  P3P4Num.writeDisplay();
   LapCountdown();
 }
 
@@ -1767,18 +1719,15 @@ void ClearRace() {
   cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .finish = 0 };
   cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .finish = 0 };
   // Clear Leaderboard Display
-  P1Time.clear();
-  P2Time.clear();
-  P3Time.clear();
-  P4Time.clear();
-  P1Time.writeDisplay();
-  P2Time.writeDisplay();
-  P3Time.writeDisplay();
-  P4Time.writeDisplay();
-  P1P2Num.clear();
-  P3P4Num.clear();
-  P1P2Num.writeDisplay();
-  P3P4Num.writeDisplay();
+  int Player_Index;
+  for (int Player = 1; Player <= Num_Racers; Player++) {
+    Player_Index = Player - 1;
+    Player_Times[Player_Index].clear();
+    Player_Times[Player_Index].writeDisplay();
+    Player_PolePositions[Player_Index].clear();
+    Player_PolePositions[Player_Index].writeDisplay();
+  }
+
   LapTimeRec.clear();
   LapRecNum.clear();
   LapTimeRec.writeDisplay();
