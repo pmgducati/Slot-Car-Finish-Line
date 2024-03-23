@@ -124,10 +124,6 @@ int L1_State = 0;                  //In Track Lap Counter Monitors State, per la
 int L2_State = 0;
 int L3_State = 0;
 int L4_State = 0;
-int L1_Last_Lap = 0;  //Flag to signal last Lap Neopixel and Sound Events, per lane
-int L2_Last_Lap = 0;
-int L3_Last_Lap = 0;
-int L4_Last_Lap = 0;
 unsigned long sound_buffer;  //Time (Milliseconds) buffer to avoid sound stomping on eachother
 
 // Struct (or class/object) that defines everything that a car needs to have
@@ -138,6 +134,7 @@ struct Car {
   int place;                 // Place the car is currently in
   unsigned long lap_time;    // The time (Milliseconds) of the last time
   unsigned long total_time;  // Total race time (Milliseconds)
+  int last_lap;              // Flag to signal last lap Neopixel and Sound Events
   int finish;                // Has the car finished the race
 };
 
@@ -277,10 +274,10 @@ void setup() {
   digitalWrite(RELAY_LANE_4, HIGH);
 
   // Set up each of our cars with default values
-  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .finish = 0 };
+  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
 }
 //Main Loop
 void loop() {
@@ -1477,42 +1474,42 @@ void End_Race() {
     Toggle_Menu_Initialize = 0;
     Last_Lap = 1;
   }
-  if (Num_Laps <= cars[0].cur_lap && L1_Last_Lap == 0) {
+  if (Num_Laps <= cars[0].cur_lap && cars[0].last_lap == 0) {
     if (sound_buffer <= (Time_Current - 3500)) {
       sound_buffer = Time_Current;
       playSdWav1.play("LASTLAP.WAV");
     }
-    L1_Last_Lap = 1;
+    cars[0].last_lap = 1;
     for (int i = 0; i < 4; i++) {
       leds[NP_Lane_1[i]] = CRGB(255, 255, 255);
     }
   }
-  if (Num_Laps <= cars[1].cur_lap && L2_Last_Lap == 0) {
+  if (Num_Laps <= cars[1].cur_lap && cars[1].last_lap == 0) {
     if (sound_buffer <= (Time_Current - 3500)) {
       sound_buffer = Time_Current;
       playSdWav1.play("LASTLAP.WAV");
     }
-    L2_Last_Lap = 1;
+    cars[1].last_lap = 1;
     for (int i = 0; i < 4; i++) {
       leds[NP_Lane_2[i]] = CRGB(255, 255, 255);
     }
   }
-  if (Num_Laps <= cars[2].cur_lap && L3_Last_Lap == 0) {
+  if (Num_Laps <= cars[2].cur_lap && cars[2].last_lap == 0) {
     if (sound_buffer <= (Time_Current - 3500)) {
       sound_buffer = Time_Current;
       playSdWav1.play("LASTLAP.WAV");
     }
-    L3_Last_Lap = 1;
+    cars[2].last_lap = 1;
     for (int i = 0; i < 4; i++) {
       leds[NP_Lane_3[i]] = CRGB(255, 255, 255);
     }
   }
-  if (Num_Laps <= cars[3].cur_lap && L4_Last_Lap == 0) {
+  if (Num_Laps <= cars[3].cur_lap && cars[3].last_lap == 0) {
     if (sound_buffer <= (Time_Current - 3500)) {
       sound_buffer = Time_Current;
       playSdWav1.play("LASTLAP.WAV");
     }
-    L4_Last_Lap = 1;
+    cars[3].last_lap = 1;
     for (int i = 0; i < 4; i++) {
       leds[NP_Lane_4[i]] = CRGB(255, 255, 255);
     }
@@ -1714,10 +1711,10 @@ void ClearRace() {
   Num_Racers = 4;
   Num_Lane = 1;
   // Set all cars back to their default values
-  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .finish = 0 };
-  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .finish = 0 };
+  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
   // Clear Leaderboard Display
   int Player_Index;
   for (int Player = 1; Player <= Num_Racers; Player++) {
