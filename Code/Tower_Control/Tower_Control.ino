@@ -103,7 +103,8 @@ unsigned int Debounce_Track = 1000;   //Default debounce time (Milliseconds) whe
 //Race Identifiers
 int Num_Laps = 5;    //Default number of laps in the Race (Can be Modified in Menu 5-99)
 int Num_Racers = 4;  //Default number of Racers in the Race (Can be Modified in Menu 1-4)
-int Num_Lane = 1;       //Used for Lane Assignment of Drivers/Car/Lap Times
+int Num_Lane = 1;    //Used for Lane Assignment of Drivers/Car/Lap Times
+int Num_Lanes = 4;   //Max number of lanes on the race track
 
 //Button Status Monitors
 int Monitor_Start = 0;  //Triggers an event when the Start Button is pressed
@@ -120,16 +121,13 @@ int Last_Lap = 0;                  //Last Lap Flag
 unsigned long Record_Lap = 10000;  //Default Lap Record Time (Actual is called from EEPROM)
 int Record_Car_Num;                //Array Identifer of the record setting car
 int Record_Car;                     //Lap Record Car Number (Value is called from EEPROM)
-int L1_State = 0;                  //In Track Lap Counter Monitors State, per lane
-int L2_State = 0;
-int L3_State = 0;
-int L4_State = 0;
 unsigned long sound_buffer;  //Time (Milliseconds) buffer to avoid sound stomping on eachother
 
 // Struct (or class/object) that defines everything that a car needs to have
 struct Car {
   int lane;                  // Lane the car is in
-  int car_number;            // The number that represents which car type is in use
+  struct Lane *lane_p;       // A pointer to the lane object the car is present in
+  int number;                // The number that represents which car type is in use
   int cur_lap;               // Current lap the car is on
   int place;                 // Place the car is currently in
   unsigned long lap_time;    // The time (Milliseconds) of the last time
@@ -138,8 +136,22 @@ struct Car {
   int finish;                // Has the car finished the race
 };
 
+// Struct (or class/object) that defines everything that a lane needs to have
+struct Lane {
+  int number;                // Lane number
+  struct Car *car_p;         // A pointer to the car object present in the lane
+  int np[4];                 // Lane LEDs array
+  int relay;                 // Controls the Relay for the lane in the Control Box
+  int monitor_lap;           // Lap counter switch for the lane
+  int state;                 // In Track Lap Counter Monitors State, per lane
+  int penalty;               // Flag if car crosses start line before the green light, per lane
+};
+
 // Declare our cars array and fill them in with default values in the loop
 struct Car *cars = (Car *)malloc(Num_Racers * sizeof *cars);
+
+// Declare our lanes array and fill them in with default values in the loop
+struct Lane *lanes = (Lane *)malloc(Num_Lanes * sizeof *lanes);
 
 //Screen Variables
 int Center_Value;  //Used to center the text on the 16x2 LCD screen
@@ -153,10 +165,6 @@ int Delay_Red_Light = 4250;      //Time for Red Lights
 int Delay_Stop_Race = 10000;     //Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
 
 //Relay Penality Variables
-int Penality_Lane1 = 1;  //Flag if car crosses start line before the green light, per lane
-int Penality_Lane2 = 1;
-int Penality_Lane3 = 1;
-int Penality_Lane4 = 1;
 int Delay_Penality = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 //Menu Arrays
@@ -225,6 +233,18 @@ void setup() {
     }
   }
 
+  // Set up each of our cars with default values
+  cars[0] = (struct Car){ .lane = 96, .number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[1] = (struct Car){ .lane = 97, .number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[2] = (struct Car){ .lane = 98, .number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[3] = (struct Car){ .lane = 99, .number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+
+  // Set up each of our lanes with default values
+  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = 0, .penalty = 0 };
+  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = 0, .penalty = 0 };
+  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = 0, .penalty = 0 };
+  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = 0, .penalty = 0 };
+
   //Read EEPROM Variables and replace default values
   Record_Lap = EEPROMReadlong(0x02);
   Record_Car = EEPROM.read(0x00);
@@ -254,30 +274,17 @@ void setup() {
   pinMode(BUTTON_START, INPUT);
   pinMode(BUTTON_STOP, INPUT);
   pinMode(LED_NOTIFICATION, OUTPUT);
-  pinMode(MONITOR_LAP_LANE_1, INPUT_PULLUP);
-  pinMode(MONITOR_LAP_LANE_2, INPUT_PULLUP);
-  pinMode(MONITOR_LAP_LANE_3, INPUT_PULLUP);
-  pinMode(MONITOR_LAP_LANE_4, INPUT_PULLUP);
-  pinMode(RELAY_LANE_1, OUTPUT);
-  pinMode(RELAY_LANE_2, OUTPUT);
-  pinMode(RELAY_LANE_3, OUTPUT);
-  pinMode(RELAY_LANE_4, OUTPUT);
+
+  // Set the monitor_lap and relay pin modes and disable the lanes before the race
+  for (int l = 0; l < Num_Lanes; l++) {
+    pinMode(lanes[l].monitor_lap, INPUT_PULLUP);
+    pinMode(lanes[l].relay, OUTPUT);
+    digitalWrite(lanes[l].relay, HIGH);
+  }
 
   //Neopixel Setup
   LEDS.addLeds<WS2812, DATA_PIN, RGB>(leds, NUM_LEDS);
   LEDS.setBrightness(NP_Brightness);
-
-  //Disable Lanes before Race
-  digitalWrite(RELAY_LANE_1, HIGH);
-  digitalWrite(RELAY_LANE_2, HIGH);
-  digitalWrite(RELAY_LANE_3, HIGH);
-  digitalWrite(RELAY_LANE_4, HIGH);
-
-  // Set up each of our cars with default values
-  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
 }
 //Main Loop
 void loop() {
@@ -306,10 +313,9 @@ void loop() {
     Race_Metrics();
   }
   if (Menu_Start_Race == 1) {
-    L1_State = digitalRead(MONITOR_LAP_LANE_1);
-    L2_State = digitalRead(MONITOR_LAP_LANE_2);
-    L3_State = digitalRead(MONITOR_LAP_LANE_3);
-    L4_State = digitalRead(MONITOR_LAP_LANE_4);
+    for (int l = 0; l < Num_Lanes; l++) {
+     lanes[l].state = digitalRead(lanes[l].monitor_lap);
+    }
     Start_Race();
   }
   if (Menu_Car_Num_Lane == 1) {
@@ -385,7 +391,6 @@ void Welcome_Message() {
   lcd.print("the Race!");
   playSdWav1.play("WELCOME.WAV");
   LapRecordDisplay();
-
 
   //Intro Green/Yellow/Red/Blue Neopixel Animation
   for (int j = 0; j < NP_Boot_Transitions; j++) {
@@ -490,20 +495,20 @@ void Options() {
   // Determine which menu to move to
   switch (Array_Increment) {
     case 0: // Move on to Number of Racers Menu
-        Menu_Number_of_Racers = 1;
-        break;
+      Menu_Number_of_Racers = 1;
+      break;
     case 1: // Move on to End Race Time Setting
-        Options_Stop_Race = 1;
-        break;
+      Options_Stop_Race = 1;
+      break;
     case 2: // Move on to Penalty Time Setting
-        Options_Penalty = 1;
-        break;
+      Options_Penalty = 1;
+      break;
     case 3: // Move on to Track Debounce Setting
-        Options_Debounce_Track = 1;
-        break;
+      Options_Debounce_Track = 1;
+      break;
     case 4: // Move on to Erase Lap Record
-        Options_Clear_Lap_Record = 1;
-        break;
+      Options_Clear_Lap_Record = 1;
+      break;
   }
 }
 
@@ -830,7 +835,9 @@ void Car_Num_Lane_Assign() {
   if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
 
   Toggle_Menu_Initialize = 1;
-  cars[Num_Lane - 1].car_number = Array_Increment;
+  cars[Num_Lane - 1].number = Array_Increment;
+  lanes[Num_Lane - 1].car_p = &cars[Num_Lane - 1];  // Set up the 2 car & lane objects to reference each other
+  cars[Num_Lane - 1].lane_p = &lanes[Num_Lane - 1]; // Set up the 2 car & lane objects to reference each other
   if (Num_Lane == Num_Racers) {
     Menu_Start_Race = 1;
     Menu_Car_Num_Lane = 0;
@@ -918,9 +925,9 @@ void Pole_Pos_Display() {
   }
 }
 
-//Race Start LED Animation/Sounds and Penalty Monitoring
+// Race Start LED Animation/Sounds and Penalty Monitoring
 void Start_Race() {
-  if (Toggle_Menu_Initialize == 1) {  //Initialization of the Race Start Sequence
+  if (Toggle_Menu_Initialize == 1) {  // Initialization of the Race Start Sequence
     FastLED.clear();
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -929,72 +936,61 @@ void Start_Race() {
     lcd.print("Your Engines");
     LEDS.setBrightness(84);
     Toggle_Menu_Initialize = 0;
-    for (int i = 0; i < NP_Boot_Transitions; i++) {  //Turn on the Red Lights
+
+    //Turn on the Red Lights
+    for (int i = 0; i < NP_Boot_Transitions; i++) {
       leds[NP_Race_Start_Red[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
       delay(10);
     }
+
     FastLED.show();
     playSdWav1.play("RED.WAV");
     delay(Delay_Red_Light);
-    digitalWrite(RELAY_LANE_1, LOW);  //Enable Power to all Lanes
-    digitalWrite(RELAY_LANE_2, LOW);
-    digitalWrite(RELAY_LANE_3, LOW);
-    digitalWrite(RELAY_LANE_4, LOW);
+
+    // Enable Power to all Lanes
+    for (int l = 0; l < Num_Lanes; l++) {
+      digitalWrite(lanes[l].relay, LOW);
+    }
+
     Time_Reference_Debounce = Time_Current;
     Array_Increment = 0;
   }
 
-  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment < 3) {  //Yellow light flashing sequence, unless a penality has occurred in a lane, see below
-    if (Penality_Lane1 != 0) {
-      leds[NP_Lane_1[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
+  // Yellow light flashing sequence, unless a penalty has occurred in a lane, see below
+  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment < 3) {
+    for (int l = 0; l < Num_Lanes; l++) {
+      if (lanes[l].penalty == 1) { continue; }
+      leds[lanes[l].np[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
     }
-    if (Penality_Lane2 != 0) {
-      leds[NP_Lane_2[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
-    }
-    if (Penality_Lane3 != 0) {
-      leds[NP_Lane_3[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
-    }
-    if (Penality_Lane4 != 0) {
-      leds[NP_Lane_4[Array_Increment]] = CHSV(NP_Boot_Colors[1], 255, 255);
-    }
+
     Time_Reference_Debounce = Time_Current;
     playSdWav1.play("YELLOW.WAV");
     FastLED.show();
     Array_Increment++;
   }
 
-  if (L1_State == 0 || L2_State == 0 || L3_State == 0 || L4_State == 0) {  //Watches the Lanes for a premature start line cross and flags with a Penality
-    if (L1_State == 0) {
-      Penality_Lane1 = L1_State;
-    }
-    if (L2_State == 0) {
-      Penality_Lane2 = L2_State;
-    }
-    if (L3_State == 0) {
-      Penality_Lane3 = L3_State;
-    }
-    if (L4_State == 0) {
-      Penality_Lane4 = L4_State;
-    }
-    Penality_Start();  //If a car crosses the start line before the green light, they are flagged with a penality and will be part of this function below
+  // Watches the Lanes for a premature start line cross and flags with a Penalty
+  int penalty = 0;
+  for (int l = 0; l < Num_Lanes; l++) {
+    if (lanes[l].state != 0) { continue; }
+    lanes[l].penalty = lanes[l].state == 0;
+    penalty = 1;
   }
 
-  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment == 3) {  //Green Light for the Start of the Race
+  // If a car crosses the start line before the green light, they are flagged with a penalty and will be part of this function below
+  if (penalty == 1) { Penality_Start(); }
+
+  // Green Light for non-penalty cars for the Start of the Race
+  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment == 3) {
     for (int i = 0; i < 4; i++) {
-      if (Penality_Lane1 != 0) {
-        leds[NP_Lane_1[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      }
-      if (Penality_Lane2 != 0) {
-        leds[NP_Lane_2[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      }
-      if (Penality_Lane3 != 0) {
-        leds[NP_Lane_3[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      }
-      if (Penality_Lane4 != 0) {
-        leds[NP_Lane_4[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      for (int l = 0; l < Num_Lanes; l++) {
+        if (lanes[l].penalty == 0) {
+          leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        }
       }
       delay(10);
     }
+
     playSdWav1.play("GREEN.WAV");
     FastLED.show();
     Menu_Start_Race = 0;
@@ -1003,46 +999,33 @@ void Start_Race() {
     Time_Reference_Debounce = Time_Current;
   }
 }
-//If a car crosses the start line before the green light, they are flagged with a penality and the red lights turn on over the lane and power is cut for the penality duration
+
+// If a car crosses the start line before the green light, they are flagged with a penality and the red lights turn on over the lane and power is cut for the penality duration
 void Penality_Start() {
-  if (Penality_Lane1 == 0) {
-    digitalWrite(RELAY_LANE_1, HIGH);
+  for (int l = 0; l < Num_Lanes; l++) {
+    if (lanes[l].penalty == 0) { continue; }
+    digitalWrite(lanes[l].relay, HIGH);
     for (int i = 0; i < 3; i++) {
-      leds[NP_Lane_1[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
-    }
-  }
-  if (Penality_Lane2 == 0) {
-    digitalWrite(RELAY_LANE_2, HIGH);
-    for (int i = 0; i < 3; i++) {
-      leds[NP_Lane_2[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
-    }
-  }
-  if (Penality_Lane3 == 0) {
-    digitalWrite(RELAY_LANE_3, HIGH);
-    for (int i = 0; i < 3; i++) {
-      leds[NP_Lane_3[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
-    }
-  }
-  if (Penality_Lane4 == 0) {
-    digitalWrite(RELAY_LANE_4, HIGH);
-    for (int i = 0; i < 3; i++) {
-      leds[NP_Lane_4[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
+      leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
     }
   }
   FastLED.show();
 }
-//Temorarpy Pause of the Race
+
+// Temorarpy Pause of the Race
 void Pause_Race() {
-  if (Toggle_Menu_Initialize == 1) {  //Cut power to all lanes
-    digitalWrite(RELAY_LANE_1, HIGH);
-    digitalWrite(RELAY_LANE_2, HIGH);
-    digitalWrite(RELAY_LANE_3, HIGH);
-    digitalWrite(RELAY_LANE_4, HIGH);
+  if (Toggle_Menu_Initialize == 1) { // Cut power to all lanes
+    for (int l = 0; l < Num_Lanes; l++) {
+      digitalWrite(lanes[l].relay, HIGH);
+    }
+
     playSdWav1.play("PAUSE.WAV");
-    Time_Offset_Pause = Time_Current;  //This is the time the race was paused so it can be adjusted for the current lap
+    Time_Offset_Pause = Time_Current; // This is the time the race was paused so it can be adjusted for the current lap
     Toggle_Menu_Initialize = 0;
   }
-  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Toggle_Race_Hazard == 0) {  //Flash Yellow Lights and display message on LCD
+
+  // Flash Yellow Lights and display message on LCD
+  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Toggle_Race_Hazard == 0) {
     for (int i = 0; i < NUM_LEDS; i++) {
       leds[i] = CHSV(NP_Boot_Colors[1], 255, 255);
       delay(10);
@@ -1053,7 +1036,9 @@ void Pause_Race() {
     Toggle_Race_Hazard = 1;
     Time_Reference_Debounce = Time_Current;
   }
-  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Toggle_Race_Hazard == 1) {  //Flash Yellow Lights and display message on LCD
+
+  // Flash Yellow Lights and display message on LCD
+  if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Toggle_Race_Hazard == 1) {
     FastLED.clear();
     lcd.clear();
     lcd.setCursor(2, 0);
@@ -1065,7 +1050,8 @@ void Pause_Race() {
   }
   FastLED.show();
 
-  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {  //Resumes Race
+  // Resumes Race
+  if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) {
     lcd.clear();
     lcd.setCursor(2, 0);
     lcd.print("Resuming Race");
@@ -1074,28 +1060,25 @@ void Pause_Race() {
       leds[NP_Race_Start_Red[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
       delay(10);
     }
-    playSdWav1.play("PAUSE.WAV");  //Neopixels go through Start sequence again and power is restores to all Lanes
+    playSdWav1.play("PAUSE.WAV"); // Neopixels go through Start sequence again and power is restores to all Lanes
     FastLED.show();
     delay(Delay_Red_Light);
     for (int i = 0; i < 3; i++) {
       playSdWav1.play("YELLOW.WAV");
-      leds[NP_Lane_1[i]] = CHSV(NP_Boot_Colors[1], 255, 255);
-      leds[NP_Lane_2[i]] = CHSV(NP_Boot_Colors[1], 255, 255);
-      leds[NP_Lane_3[i]] = CHSV(NP_Boot_Colors[1], 255, 255);
-      leds[NP_Lane_4[i]] = CHSV(NP_Boot_Colors[1], 255, 255);
+      for (int l = 0; l < Num_Lanes; l++) {
+        leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[1], 255, 255);
+      }
       FastLED.show();
       delay(Delay_Yellow_Light);
     }
-    digitalWrite(RELAY_LANE_1, LOW);
-    digitalWrite(RELAY_LANE_2, LOW);
-    digitalWrite(RELAY_LANE_3, LOW);
-    digitalWrite(RELAY_LANE_4, LOW);
+    for (int l = 0; l < Num_Lanes; l++) {
+      digitalWrite(lanes[l].relay, LOW);
+    }
     for (int i = 0; i < 4; i++) {
       playSdWav1.play("GREEN.WAV");
-      leds[NP_Lane_1[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[NP_Lane_2[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[NP_Lane_3[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[NP_Lane_4[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      for (int l = 0; l < Num_Lanes; l++) {
+        leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      }
     }
     FastLED.show();
     Toggle_Race_Pause = 0;
@@ -1103,7 +1086,8 @@ void Pause_Race() {
     Toggle_Menu_Initialize = 1;
   }
 }
-//Stops race completely, Kills power to all lanes and resets unit for new race
+
+// Stops race completely, Kills power to all lanes and resets unit for new race
 void Stop_Race() {
   for (int i = 0; i < NUM_LEDS; i++) {  //Set all Lights to Red
     leds[i] = CHSV(NP_Boot_Colors[2], 255, 255);
@@ -1113,10 +1097,9 @@ void Stop_Race() {
   lcd.clear();
   lcd.setCursor(3, 0);
   lcd.print("Race Ended");
-  digitalWrite(RELAY_LANE_1, HIGH);  //Cut Power to all Lanes
-  digitalWrite(RELAY_LANE_2, HIGH);
-  digitalWrite(RELAY_LANE_3, HIGH);
-  digitalWrite(RELAY_LANE_4, HIGH);
+  for (int l = 0; l < Num_Lanes; l++) { // Cut Power to all Lanes
+    digitalWrite(lanes[l].relay, HIGH);
+  }
   delay(Delay_Stop_Race);
   for (int i = 84; i >= 0; i--) {  //Fade out Animation
     if (i > 1) {
@@ -1131,112 +1114,76 @@ void Stop_Race() {
   Toggle_Race_Stop = 0;
   Race_Over = 1;
 }
-//Monitors All Race Attributes
+
+// Monitors All Race Attributes
 void Race_Metrics() {
   if (Toggle_Menu_Initialize == 1 && Race_Over == 0) {
-    LEDS.setBrightness(NP_Brightness);  //Initialize Settings for race
+    LEDS.setBrightness(NP_Brightness);  // Initialize Settings for race
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Race In Progress");
     Toggle_Menu_Initialize = 0;
     Time_Current = millis();
-    cars[0].total_time = Time_Current;
-    cars[1].total_time = Time_Current;
-    cars[2].total_time = Time_Current;
-    cars[3].total_time = Time_Current;
+    for (int c = 0; c < Num_Racers; c++) {
+      cars[c].total_time = Time_Current;
+    }
   }
-  if (Monitor_Stop == 1) {  //Monitor the Stop Button to cancel Race
+
+  // Monitor the Stop Button to cancel Race
+  if (Monitor_Stop == 1) {
     Toggle_Race_Stop = 1;
     Toggle_Race_Metrics = 0;
     Stop_Race();
   }
-  if (Monitor_Start == 1 && Toggle_Race_Metrics == 1) {  //Monitor the Start Button to Pause Race
+
+  // Monitor the Start Button to Pause Race
+  if (Monitor_Start == 1 && Toggle_Race_Metrics == 1) {
     Toggle_Menu_Initialize = 1;
     Toggle_Race_Metrics = 0;
     Toggle_Race_Pause = 1;
   }
-  if (Penality_Lane1 == 0 || Penality_Lane2 == 0 || Penality_Lane3 == 0 || Penality_Lane4 == 0) {  //Watches for penailty flags on any lane, restores power to the lane(s) after penality duration
-    if (Penality_Lane1 == 0) {
-      if (Time_Current > (Time_Reference_Debounce + Delay_Penality)) {
-        digitalWrite(RELAY_LANE_1, LOW);
-        Penality_Lane1 = 1;
-        for (int i = 0; i < 4; i++) {
-          leds[NP_Lane_1[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        }
-      }
+
+  // Watches for penalty flags on any lane, restores power to the lane(s) after penalty duration
+  int penalty = 0;
+  for (int l = 0; l < Num_Lanes; l++) {
+    if (lanes[l].penalty == 0 || Time_Current <= (Time_Reference_Debounce + Delay_Penality)) { continue; }
+
+    // If there was a penalty on the lane and the penalty delay has expired
+    digitalWrite(lanes[l].relay, LOW);
+    lanes[l].penalty = 0;
+
+    for (int i = 0; i < 4; i++) {
+      leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
     }
-    if (Penality_Lane2 == 0) {
-      if (Time_Current > (Time_Reference_Debounce + Delay_Penality)) {
-        digitalWrite(RELAY_LANE_2, LOW);
-        Penality_Lane2 = 1;
-        for (int i = 0; i < 4; i++) {
-          leds[NP_Lane_2[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        }
-      }
+
+    penalty = 1;
+  }
+
+  if (penalty == 1) { FastLED.show(); }
+
+  // Reads the lap counter pins for car crossings
+  for (int l = 0; l < Num_Lanes; l++) {
+    lanes[l].state = digitalRead(lanes[l].monitor_lap);
+  }
+
+  // When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter
+  for (int c = 0; c < Num_Racers; c++) {
+    if (cars[c].lane_p->state == LOW && Time_Current > (cars[c].total_time + Debounce_Track)) {
+      cars[c].lap_time = (Time_Current - cars[0].total_time);
+      cars[c].total_time = Time_Current;
+      cars[c].cur_lap = cars[c].cur_lap + 1;
+
+      Lap_Counter();
+      DetermineRacePlace();
     }
-    if (Penality_Lane3 == 0) {
-      if (Time_Current > (Time_Reference_Debounce + Delay_Penality)) {
-        digitalWrite(RELAY_LANE_3, LOW);
-        Penality_Lane3 = 1;
-        for (int i = 0; i < 4; i++) {
-          leds[NP_Lane_3[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        }
-      }
-    }
-    if (Penality_Lane4 == 0) {
-      if (Time_Current > (Time_Reference_Debounce + Delay_Penality)) {
-        digitalWrite(RELAY_LANE_4, LOW);
-        Penality_Lane4 = 1;
-        for (int i = 0; i < 4; i++) {
-          leds[NP_Lane_4[i]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        }
-      }
-    }
-    FastLED.show();
   }
-  L1_State = digitalRead(MONITOR_LAP_LANE_1);  //Reads the lap counter pins for car crossings
-  L2_State = digitalRead(MONITOR_LAP_LANE_2);
-  L3_State = digitalRead(MONITOR_LAP_LANE_3);
-  L4_State = digitalRead(MONITOR_LAP_LANE_4);
 
-  if (L1_State == LOW && Time_Current > (cars[0].total_time + Debounce_Track)) {  //When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter.
-    cars[0].lap_time = (Time_Current - cars[0].total_time);
-    cars[0].total_time = Time_Current;
-    cars[0].cur_lap = cars[0].cur_lap + 1;
-
-    Lap_Counter();
-    DetermineRacePlace();
-  }
-  if (L2_State == LOW && Time_Current > (cars[1].total_time + Debounce_Track)) {
-    cars[1].lap_time = (Time_Current - cars[1].total_time);
-    cars[1].total_time = Time_Current;
-    cars[1].cur_lap = cars[1].cur_lap + 1;
-
-    Lap_Counter();
-    DetermineRacePlace();
-  }
-  if (L3_State == LOW && Time_Current > (cars[2].total_time + Debounce_Track)) {
-    cars[2].lap_time = (Time_Current - cars[2].total_time);
-    cars[2].total_time = Time_Current;
-    cars[2].cur_lap = cars[2].cur_lap + 1;
-
-    Lap_Counter();
-    DetermineRacePlace();
-  }
-  if (L4_State == LOW && Time_Current > (cars[3].total_time + Debounce_Track)) {
-    cars[3].lap_time = (Time_Current - cars[3].total_time);
-    cars[3].total_time = Time_Current;
-    cars[3].cur_lap = cars[3].cur_lap + 1;
-
-    Lap_Counter();
-    DetermineRacePlace();
-  }
   // Monitor for Lap Record
-  for (int i = 0; i < Num_Racers; i++) {
-    if (cars[i].lap_time < Record_Lap && (cars[i].lap_time) > Debounce_Track) {
-      Record_Lap = cars[i].lap_time;
-      Record_Car_Num = i;
-      Record_Car = cars[Record_Car_Num].car_number;
+  for (int c = 0; c < Num_Racers; c++) {
+    if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > Debounce_Track) {
+      Record_Lap = cars[c].lap_time;
+      Record_Car_Num = c;
+      Record_Car = cars[Record_Car_Num].number;
       LapRecordDisplay();
     }
   }
@@ -1266,7 +1213,7 @@ void LapRecordDisplay() {
 //When new Lap Record is achieved it is written to EEPROM
 void LapRecord() {
   EEPROM_writelong(0x02, Record_Lap);
-  EEPROM.write(0x00, cars[Record_Car_Num].car_number);
+  EEPROM.write(0x00, cars[Record_Car_Num].number);
 }
 //Write Long to EEPROM
 void EEPROM_writelong(int address, long value) {
@@ -1291,35 +1238,37 @@ void EEPROMWriteInt(int address, int value) {
   EEPROM.update(address, two);
   EEPROM.update(address + 1, one);
 }
-//Monitor Lap Number and Display on 7 Segment Display
+
+// Monitor Lap Number and Display on 7 Segment Display
 void Lap_Counter() {
   if (Num_Laps >= Current_Lap_Num) {
-    if (Current_Lap_Num < max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap)) {  //If the current lap counter is less than the highest lap, clear the display
-      Current_Lap_Num = max(max(max(cars[0].cur_lap, cars[1].cur_lap), cars[2].cur_lap), cars[3].cur_lap);      //update and the Lap counter
+    int max_lap = 0;
+    for (int c = 0; c < Num_Racers; c++) {
+      max_lap = max(max_lap, cars[c].cur_lap);
+    }
+
+    // If the current lap counter is less than the highest lap, clear the display
+    if (Current_Lap_Num < max_lap) {  
+      Current_Lap_Num = max_lap; // Update and the Lap counter
       char LapBuffer[2];
-      dtostrf(Current_Lap_Num, 2, 0, LapBuffer);  //Convert the Lap number individual char in an array and update lap count 7 segment displays.
-      if (Current_Lap_Num < 10) {
-        LapRecNum.writeDigitAscii(3, LapBuffer[1]);
-      } else {
-        LapRecNum.writeDigitAscii(2, LapBuffer[0]);
-        LapRecNum.writeDigitAscii(3, LapBuffer[1]);
-      }
+      dtostrf(Current_Lap_Num, 2, 0, LapBuffer);  // Convert the Lap number individual char in an array and update lap count 7 segment displays
+      if (Current_Lap_Num >= 10) { LapRecNum.writeDigitAscii(2, LapBuffer[0]); }
+      LapRecNum.writeDigitAscii(3, LapBuffer[1]);
       LapRecNum.writeDisplay();
     }
   }
+
   if (Num_Laps <= Current_Lap_Num) {
     String Final_Lap = "FL";
-    char FL[2];
     LapRecNum.clear();
     LapRecNum.writeDisplay();
-    FL[0] = Final_Lap[0];
-    FL[1] = Final_Lap[1];
-    LapRecNum.writeDigitAscii(2, FL[0]);
-    LapRecNum.writeDigitAscii(3, FL[1]);
+    LapRecNum.writeDigitAscii(2, Final_Lap[0]);
+    LapRecNum.writeDigitAscii(3, Final_Lap[1]);
     LapRecNum.writeDisplay();
     LapRecordDisplay();
   }
 }
+
 // Determine what place each car is in
 void DetermineRacePlace() {
   // Sorts the cars based on how many laps completed and lowest total race time
@@ -1373,11 +1322,11 @@ void Display_Leaderboard() {
 
     // If it's an odd numbered player, display the car number to the left, even numbered player to the right
     if (Player % 2 != 0) {
-      Player_PolePositions[Player_Index].writeDigitAscii(2, Car_Numbers[cars[Player_Index].car_number][0]);
-      Player_PolePositions[Player_Index].writeDigitAscii(3, Car_Numbers[cars[Player_Index].car_number][1]);
+      Player_PolePositions[Player_Index].writeDigitAscii(2, Car_Numbers[cars[Player_Index].number][0]);
+      Player_PolePositions[Player_Index].writeDigitAscii(3, Car_Numbers[cars[Player_Index].number][1]);
     } else {
-      Player_PolePositions[Player_Index].writeDigitAscii(0, Car_Numbers[cars[Player_Index].car_number][0]);
-      Player_PolePositions[Player_Index].writeDigitAscii(1, Car_Numbers[cars[Player_Index].car_number][1]);
+      Player_PolePositions[Player_Index].writeDigitAscii(0, Car_Numbers[cars[Player_Index].number][0]);
+      Player_PolePositions[Player_Index].writeDigitAscii(1, Car_Numbers[cars[Player_Index].number][1]);
     }
 
     // Write the player lap time and pole position to the display
@@ -1391,301 +1340,117 @@ void Display_Leaderboard() {
   LapCountdown();
 }
 
-//Display The Correct Number of Laps LED Pattern
+// Display The Correct Number of Laps LED Pattern
 void LapCountdown() {
-  if ((Num_Laps - cars[0].cur_lap) == 1) {
-    leds[NP_Lane_1[0]] = CRGB(0, 0, 0);
-    leds[NP_Lane_1[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[2]] = CRGB(0, 0, 0);
-    leds[NP_Lane_1[3]] = CRGB(0, 0, 0);
+  for (int c = 0; c < Num_Racers; c++) {
+    switch (Num_Laps - cars[c].cur_lap) {
+    case 1: // 1 lap remaining
+      leds[cars[c].lane_p->np[0]] = CRGB(0, 0, 0);
+      leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[2]] = CRGB(0, 0, 0);
+      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+      break;
+    case 2: // 2 laps remaining
+      leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[1]] = CRGB(0, 0, 0);
+      leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+      break;
+    case 3: // 3 laps remaining
+      leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+      break;
+    }
   }
-  if ((Num_Laps - cars[0].cur_lap) == 2) {
-    leds[NP_Lane_1[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[1]] = CRGB(0, 0, 0);
-    leds[NP_Lane_1[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[0].cur_lap) == 3) {
-    leds[NP_Lane_1[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_1[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[1].cur_lap) == 1) {
-    leds[NP_Lane_2[0]] = CRGB(0, 0, 0);
-    leds[NP_Lane_2[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[2]] = CRGB(0, 0, 0);
-    leds[NP_Lane_2[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[1].cur_lap) == 2) {
-    leds[NP_Lane_2[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[1]] = CRGB(0, 0, 0);
-    leds[NP_Lane_2[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[1].cur_lap) == 3) {
-    leds[NP_Lane_2[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_2[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[2].cur_lap) == 1) {
-    leds[NP_Lane_3[0]] = CRGB(0, 0, 0);
-    leds[NP_Lane_3[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[2]] = CRGB(0, 0, 0);
-    leds[NP_Lane_3[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[2].cur_lap) == 2) {
-    leds[NP_Lane_3[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[1]] = CRGB(0, 0, 0);
-    leds[NP_Lane_3[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[2].cur_lap) == 3) {
-    leds[NP_Lane_3[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_3[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[3].cur_lap) == 1) {
-    leds[NP_Lane_4[0]] = CRGB(0, 0, 0);
-    leds[NP_Lane_4[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[2]] = CRGB(0, 0, 0);
-    leds[NP_Lane_4[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[3].cur_lap) == 2) {
-    leds[NP_Lane_4[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[1]] = CRGB(0, 0, 0);
-    leds[NP_Lane_4[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[3]] = CRGB(0, 0, 0);
-  }
-  if ((Num_Laps - cars[3].cur_lap) == 3) {
-    leds[NP_Lane_4[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-    leds[NP_Lane_4[3]] = CRGB(0, 0, 0);
-  }
+
   FastLED.show();
 }
-//Final Lap and Finish Actions
+
+// Final Lap and Finish Actions
 void End_Race() {
-  //At Last Lap Turn all LEDs white per lane and play the Last Lap song
+  // At Last Lap Turn all LEDs white per lane and play the Last Lap song
   if (Num_Laps == Current_Lap_Num && Toggle_Menu_Initialize == 1) {
     Toggle_Menu_Initialize = 0;
     Last_Lap = 1;
   }
-  if (Num_Laps <= cars[0].cur_lap && cars[0].last_lap == 0) {
-    if (sound_buffer <= (Time_Current - 3500)) {
-      sound_buffer = Time_Current;
-      playSdWav1.play("LASTLAP.WAV");
-    }
-    cars[0].last_lap = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_1[i]] = CRGB(255, 255, 255);
-    }
-  }
-  if (Num_Laps <= cars[1].cur_lap && cars[1].last_lap == 0) {
-    if (sound_buffer <= (Time_Current - 3500)) {
-      sound_buffer = Time_Current;
-      playSdWav1.play("LASTLAP.WAV");
-    }
-    cars[1].last_lap = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_2[i]] = CRGB(255, 255, 255);
+
+  // Determine when a car is on its last lap
+  for (int c = 0; c < Num_Racers; c++) {
+    if (Num_Laps <= cars[c].cur_lap && cars[c].last_lap == 0) {
+      if (sound_buffer <= (Time_Current - 3500)) {
+        sound_buffer = Time_Current;
+        playSdWav1.play("LASTLAP.WAV");
+      }
+      cars[c].last_lap = 1;
+      for (int i = 0; i < 4; i++) {
+        leds[cars[c].lane_p->np[i]] = CRGB(255, 255, 255);
+      }
     }
   }
-  if (Num_Laps <= cars[2].cur_lap && cars[2].last_lap == 0) {
-    if (sound_buffer <= (Time_Current - 3500)) {
-      sound_buffer = Time_Current;
-      playSdWav1.play("LASTLAP.WAV");
-    }
-    cars[2].last_lap = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_3[i]] = CRGB(255, 255, 255);
-    }
-  }
-  if (Num_Laps <= cars[3].cur_lap && cars[3].last_lap == 0) {
-    if (sound_buffer <= (Time_Current - 3500)) {
-      sound_buffer = Time_Current;
-      playSdWav1.play("LASTLAP.WAV");
-    }
-    cars[3].last_lap = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_4[i]] = CRGB(255, 255, 255);
-    }
-  }
+
   FastLED.show();
 
-  //Action When Car in Lane 1 Finishes the Race
-  if (cars[0].cur_lap > Num_Laps && cars[0].finish == 0) {
-    digitalWrite(RELAY_LANE_1, HIGH);  //Cut Power to the Lane
-    cars[0].finish = 1;
+  // Action When a Car Finishes the Race
+  for (int c = 0; c < Num_Racers; c++) {
+    if (cars[c].cur_lap <= Num_Laps || cars[c].finish != 0) { continue; }
+    digitalWrite(cars[c].lane_p->relay, HIGH); // Cut Power to the Lane
+    cars[c].finish = 1;
     for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_1[i]] = CRGB(0, 0, 0);
+      leds[cars[c].lane_p->np[i]] = CRGB(0, 0, 0);
     }
     FastLED.show();
     delay(10);
-    //Display The Correct Position LED Pattern
-    if (cars[0].place == 1) {
-      sound_buffer = Time_Current;
-      leds[NP_Lane_1[1]] = CRGB(0, 255, 255);
+
+    // Display The Correct Position LED Pattern
+    switch (cars[c].place) {
+      case 1:
+        sound_buffer = Time_Current;
+        leds[cars[c].lane_p->np[1]] = CRGB(0, 255, 255);
+        break;
+      case 2:
+        if (sound_buffer <= (Time_Current - 8500)) {
+          playSdWav1.play("RECORD.WAV");
+        }
+        leds[cars[c].lane_p->np[0]] = CRGB(0, 255, 255);
+        leds[cars[c].lane_p->np[2]] = CRGB(0, 255, 255);
+        break;
+      case 3:
+        if (sound_buffer <= (Time_Current - 8500)) {
+          playSdWav1.play("RECORD.WAV");
+        }
+        for (int i = 0; i < 3; i++) {
+          leds[cars[c].lane_p->np[i]] = CRGB(0, 255, 255);
+        }
+        break;
+      case 4:
+        if (sound_buffer <= (Time_Current - 8500)) {
+          playSdWav1.play("RECORD.WAV");
+        }
+        for (int i = 0; i < 4; i++) {
+          leds[cars[c].lane_p->np[i]] = CRGB(0, 255, 255);
+        }
+        break;
     }
-    if (cars[0].place == 2) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      leds[NP_Lane_1[0]] = CRGB(0, 255, 255);
-      leds[NP_Lane_1[2]] = CRGB(0, 255, 255);
-    }
-    if (cars[0].place == 3) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 3; i++) {
-        leds[NP_Lane_1[i]] = CRGB(0, 255, 255);
-      }
-    }
-    if (cars[0].place == 4) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 4; i++) {
-        leds[NP_Lane_1[i]] = CRGB(0, 255, 255);
-      }
-    }
+  
     FastLED.show();
   }
-  //Action When Car in Lane 2 Finishes the Race
-  if (cars[1].cur_lap > Num_Laps && cars[1].finish == 0) {
-    digitalWrite(RELAY_LANE_2, HIGH);  //Cut Power to the Lane
-    cars[1].finish = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_2[i]] = CRGB(0, 0, 0);
-    }
-    FastLED.show();
-    delay(10);
-    //Display The Correct Position LED Pattern
-    if (cars[1].place == 1) {
-      sound_buffer = Time_Current;
-      leds[NP_Lane_2[1]] = CRGB(0, 255, 255);
-    }
-    if (cars[1].place == 2) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      leds[NP_Lane_2[0]] = CRGB(0, 255, 255);
-      leds[NP_Lane_2[2]] = CRGB(0, 255, 255);
-    }
-    if (cars[1].place == 3) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 3; i++) {
-        leds[NP_Lane_2[i]] = CRGB(0, 255, 255);
-      }
-    }
-    if (cars[1].place == 4) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 4; i++) {
-        leds[NP_Lane_2[i]] = CRGB(0, 255, 255);
-      }
-    }
-    FastLED.show();
-  }
-  //Action When Car in Lane 3 Finishes the Race
-  if (cars[2].cur_lap > Num_Laps && cars[2].finish == 0) {
-    digitalWrite(RELAY_LANE_3, HIGH);  //Cut Power to the Lane
-    cars[2].finish = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_3[i]] = CRGB(0, 0, 0);
-    }
-    FastLED.show();
-    delay(10);
-    //Display The Correct Position LED Pattern
-    if (cars[2].place == 1) {
-      sound_buffer = Time_Current;
-      leds[NP_Lane_3[1]] = CRGB(0, 255, 255);
-    }
-    if (cars[2].place == 2) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      leds[NP_Lane_3[0]] = CRGB(0, 255, 255);
-      leds[NP_Lane_3[2]] = CRGB(0, 255, 255);
-    }
-    if (cars[2].place == 3) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 3; i++) {
-        leds[NP_Lane_3[i]] = CRGB(0, 255, 255);
-      }
-    }
-    if (cars[2].place == 4) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 4; i++) {
-        leds[NP_Lane_3[i]] = CRGB(0, 255, 255);
-      }
-    }
-    FastLED.show();
-  }
-  //Action When Car in Lane 4 Finishes the Race
-  if (cars[3].cur_lap > Num_Laps && cars[3].finish == 0) {
-    digitalWrite(RELAY_LANE_4, HIGH);  //Cut Power to the Lane
-    cars[3].finish = 1;
-    for (int i = 0; i < 4; i++) {
-      leds[NP_Lane_4[i]] = CRGB(0, 0, 0);
-    }
-    FastLED.show();
-    delay(10);
-    //Display The Correct Position LED Pattern
-    if (cars[3].place == 1) {
-      sound_buffer = Time_Current;
-      leds[NP_Lane_4[1]] = CRGB(0, 255, 255);
-    }
-    if (cars[3].place == 2) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      leds[NP_Lane_4[0]] = CRGB(0, 255, 255);
-      leds[NP_Lane_4[2]] = CRGB(0, 255, 255);
-    }
-    if (cars[3].place == 3) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 3; i++) {
-        leds[NP_Lane_4[i]] = CRGB(0, 255, 255);
-      }
-    }
-    if (cars[3].place == 4) {
-      if (sound_buffer <= (Time_Current - 8500)) {
-        playSdWav1.play("RECORD.WAV");
-      }
-      for (int i = 0; i < 4; i++) {
-        leds[NP_Lane_4[i]] = CRGB(0, 255, 255);
-      }
-    }
-    FastLED.show();
-  }
+
   // Determine the number of cars that have finished the race
   int cars_finished = 0;
-  for (int i = 0; i < Num_Racers; i++) {
-    if (cars[i].finish == 1) {
+  for (int c = 0; c < Num_Racers; c++) {
+    if (cars[c].finish == 1) {
       cars_finished++;
     }
   }
+
   // When the first car crosses the finish line play the finish Song
-  if (First_Car_Finish == 0) {
-    if (cars_finished >= 1) {
-      playSdWav1.play("FINISH.WAV");
-      First_Car_Finish = 1;
-    }
+  if (First_Car_Finish == 0 && cars_finished >= 1) {
+    playSdWav1.play("FINISH.WAV");
+    First_Car_Finish = 1;
   }
+
   // End Race After all Cars Cross the Finish Line
   if (Num_Racers == cars_finished && Race_Over == 0) {
     lcd.clear();
@@ -1694,6 +1459,7 @@ void End_Race() {
     Race_Over = 1;
   }
 }
+
 //Reset all Variables and 7 Segment Displays from Previous Race and Record Lap Record
 void ClearRace() {
   // Write Lap Record to EEPROM
@@ -1703,18 +1469,22 @@ void ClearRace() {
   Race_Over = 0;
   First_Car_Finish = 0;
   Last_Lap = 0;
-  L1_State = 0;
-  L2_State = 0;
-  L3_State = 0;
-  L4_State = 0;
   Num_Laps = 5;
   Num_Racers = 4;
   Num_Lane = 1;
+
   // Set all cars back to their default values
-  cars[0] = (struct Car){ .lane = 1, .car_number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[1] = (struct Car){ .lane = 2, .car_number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[2] = (struct Car){ .lane = 3, .car_number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
-  cars[3] = (struct Car){ .lane = 4, .car_number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[0] = (struct Car){ .lane = 96, .number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[1] = (struct Car){ .lane = 97, .number = 10, .cur_lap = 0, .place = 2, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[2] = (struct Car){ .lane = 98, .number = 10, .cur_lap = 0, .place = 3, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+  cars[3] = (struct Car){ .lane = 99, .number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
+
+  // Set up each of our lanes with default values
+  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = 0, .penalty = 0 };
+  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = 0, .penalty = 0 };
+  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = 0, .penalty = 0 };
+  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = 0, .penalty = 0 };
+
   // Clear Leaderboard Display
   int Player_Index;
   for (int Player = 1; Player <= Num_Racers; Player++) {
