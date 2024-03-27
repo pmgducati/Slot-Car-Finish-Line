@@ -102,6 +102,8 @@ unsigned int Debounce_Track = 1000;   //Default debounce time (Milliseconds) whe
 
 //Race Identifiers
 int Num_Laps = 5;    //Default number of laps in the Race (Can be Modified in Menu 5-99)
+int MIN_LAPS = 5;    //Minimum number of laps in a race
+int MAX_LAPS = 99;   //Maximum number of laps in a race
 int Num_Racers = 4;  //Default number of Racers in the Race (Can be Modified in Menu 1-4)
 int Num_Lane = 1;    //Used for Lane Assignment of Drivers/Car/Lap Times
 int Num_Lanes = 4;   //Max number of lanes on the race track
@@ -118,7 +120,7 @@ int Current_Lap_Num = 0;           //Lap Count in Current Race
 int Race_Over = 0;                 //Race Complete Flag
 int First_Car_Finish = 0;          //Flag to Play FINISH.WAV
 int Last_Lap = 0;                  //Last Lap Flag
-unsigned long Record_Lap = 10000;  //Default Lap Record Time (Actual is called from EEPROM)
+unsigned long Record_Lap = 99999;  //Default Lap Record Time (Actual is called from EEPROM)
 int Record_Car_Num;                //Array Identifer of the record setting car
 int Record_Car;                     //Lap Record Car Number (Value is called from EEPROM)
 unsigned long sound_buffer;  //Time (Milliseconds) buffer to avoid sound stomping on eachother
@@ -694,8 +696,8 @@ void Number_of_Racers() {
   if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add to the number of racers
     Time_Reference_Debounce = Time_Current;
     Num_Racers++;
-    if (Num_Racers > 4) {
-      Num_Racers = 4;
+    if (Num_Racers > Num_Lanes) {
+      Num_Racers = Num_Lanes;
     }
     Screen_Rotary_Update = 1;
   } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract from the number of racers
@@ -742,15 +744,15 @@ void Number_of_Laps() {
   if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add to the number of Laps
     Num_Laps++;
     Time_Reference_Debounce = Time_Current;
-    if (Num_Laps > 99) {
-      Num_Laps = 5;
+    if (Num_Laps > MAX_LAPS) {
+      Num_Laps = MIN_LAPS;
     }
     Screen_Rotary_Update = 1;
   } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract from the number of Laps
     Time_Reference_Debounce = Time_Current;
     Num_Laps--;
-    if (Num_Laps < 5) {
-      Num_Laps = 99;
+    if (Num_Laps < MIN_LAPS) {
+      Num_Laps = MAX_LAPS;
     }
     Screen_Rotary_Update = 1;
   }
@@ -801,7 +803,7 @@ void Car_Num_Lane_Assign() {
     lcd.print("Car Num");
     Center_Text_Car();
     lcd.print(Car_Names[Array_Increment]);
-    Pole_Pos_Display();
+    Pole_Pos_Display(Num_Lane);
   }
 
   Rotary_Encoder();
@@ -827,7 +829,7 @@ void Car_Num_Lane_Assign() {
     lcd.print("                ");
     Center_Text_Car();
     lcd.print(Car_Names[Array_Increment]);
-    Pole_Pos_Display();
+    Pole_Pos_Display(Num_Lane);
     Encoder_Position_Old = Encoder_Position_New;
     Time_Reference_Debounce = Time_Current;
   }
@@ -914,15 +916,16 @@ void Center_Text_EEPROM() {
 }
 
 // Inital Display of Car Numbers on 7 Segment Displays
-void Pole_Pos_Display() {
+void Pole_Pos_Display(int lane_num) {
   // If it's an odd numbered Num_Lane, display the car number to the left, even numbered player to the right
-  if (Num_Lane % 2 != 0) {
-    Player_PolePositions[Num_Lane - 1].writeDigitAscii(2, Car_Numbers[Array_Increment][0]);
-    Player_PolePositions[Num_Lane - 1].writeDigitAscii(3, Car_Numbers[Array_Increment][1]);
+  if (lane_num % 2 != 0) {
+    Player_PolePositions[lane_num - 1].writeDigitAscii(2, Car_Numbers[Array_Increment][0]);
+    Player_PolePositions[lane_num - 1].writeDigitAscii(3, Car_Numbers[Array_Increment][1]);
   } else {
-    Player_PolePositions[Num_Lane - 1].writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
-    Player_PolePositions[Num_Lane - 1].writeDigitAscii(1, Car_Numbers[Array_Increment][1]);
+    Player_PolePositions[lane_num - 1].writeDigitAscii(0, Car_Numbers[Array_Increment][0]);
+    Player_PolePositions[lane_num - 1].writeDigitAscii(1, Car_Numbers[Array_Increment][1]);
   }
+  Player_PolePositions[lane_num - 1].writeDisplay();
 }
 
 // Race Start LED Animation/Sounds and Penalty Monitoring
@@ -1192,7 +1195,7 @@ void Race_Metrics() {
 // Reads Lap Record from EEPROM and Displays on 7 Sgement Displays
 void LapRecordDisplay() {
   char LapTimeRec_String[5];
-  unsigned short LapTimeRec_Display = (Record_Lap > 999999 ? 999999 : Record_Lap) / 100; // Limit the lap time we'll display to ###.# seconds from milliseconds
+  unsigned short LapTimeRec_Display = (Record_Lap > 999999 ? 999999 : Record_Lap) / 1000; // Limit the lap time we'll display to ###.# seconds from milliseconds
   sprintf(LapTimeRec_String, "%4hu", LapTimeRec_Display);
 
   // Write the car who has the lap record
@@ -1311,7 +1314,7 @@ void Display_Leaderboard() {
   for (int Player = 1; Player <= Num_Racers; Player++) {
     Player_Index = Player - 1;
     // Limit the lap time we'll display to ###.# seconds from milliseconds
-    PlayerLapTimes_Display[Player_Index] = (cars[Player_Index].lap_time > 999999 ? 999999 : cars[Player_Index].lap_time) / 100;
+    PlayerLapTimes_Display[Player_Index] = (cars[Player_Index].lap_time > 999999 ? 999999 : cars[Player_Index].lap_time) / 1000;
     sprintf(PlayerLapTimes_Strings[Player_Index], "%4hu", PlayerLapTimes_Display[Player_Index]);
 
     // Write the player lap time to the ascii buffer
@@ -1344,24 +1347,24 @@ void Display_Leaderboard() {
 void LapCountdown() {
   for (int c = 0; c < Num_Racers; c++) {
     switch (Num_Laps - cars[c].cur_lap) {
-    case 1: // 1 lap remaining
-      leds[cars[c].lane_p->np[0]] = CRGB(0, 0, 0);
-      leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[2]] = CRGB(0, 0, 0);
-      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
-      break;
-    case 2: // 2 laps remaining
-      leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[1]] = CRGB(0, 0, 0);
-      leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
-      break;
-    case 3: // 3 laps remaining
-      leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-      leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
-      break;
+      case 1: // 1 lap remaining
+        leds[cars[c].lane_p->np[0]] = CRGB(0, 0, 0);
+        leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[2]] = CRGB(0, 0, 0);
+        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        break;
+      case 2: // 2 laps remaining
+        leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[1]] = CRGB(0, 0, 0);
+        leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        break;
+      case 3: // 3 laps remaining
+        leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        break;
     }
   }
 
