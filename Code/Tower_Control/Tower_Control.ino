@@ -107,6 +107,7 @@ int MAX_LAPS = 99;   //Maximum number of laps in a race
 int Num_Racers = 4;  //Default number of Racers in the Race (Can be Modified in Menu 1-4)
 int Num_Lane = 1;    //Used for Lane Assignment of Drivers/Car/Lap Times
 int Num_Lanes = 4;   //Max number of lanes on the race track
+int Configured_Racers = 0; //How many cars have been configured
 
 //Button Status Monitors
 int Monitor_Start = 0;  //Triggers an event when the Start Button is pressed
@@ -150,7 +151,7 @@ struct Lane {
 };
 
 // Declare our cars array and fill them in with default values in the loop
-struct Car *cars = (Car *)malloc(Num_Racers * sizeof *cars);
+struct Car *cars = (Car *)malloc(Num_Lanes * sizeof *cars);
 
 // Declare our lanes array and fill them in with default values in the loop
 struct Lane *lanes = (Lane *)malloc(Num_Lanes * sizeof *lanes);
@@ -223,6 +224,31 @@ int EEPROMReadInt(int address) {
   //Return the recomposed long by using bitshift
   return ((two << 0) & 0xFFFFFF) + ((one << 8) & 0xFFFFFFFF);
 }
+
+// Reads the start button and won't exit the function until the user stops pressing it
+int Read_Buttons_Start(){
+  int button_pressed = 0; // Was the button pressed at all
+  int button_status = 0;  // The current status of the button
+
+  do {
+    button_status = digitalRead(BUTTON_START);
+    if (button_status == 1 && button_pressed == 0) { button_pressed = button_status; } // If we saw the button pressed at any time, set the flag
+  } while (button_status == 1);
+  return button_pressed;
+}
+
+// Reads the back button and won't exit the function until the user stops pressing it
+int Read_Buttons_Back(){
+  int button_pressed = 0; // Was the button pressed at all
+  int button_status = 0;  // The current status of the button
+
+  do {
+    button_status = digitalRead(BUTTON_BACK);
+    if (button_status == 1 && button_pressed == 0) { button_pressed = button_status; } // If we saw the button pressed at any time, set the flag
+  } while (button_status == 1);
+  return button_pressed;
+}
+
 void setup() {
   //Start Serial Monitor
   Serial.begin(9600);
@@ -777,6 +803,64 @@ void Number_of_Laps() {
   }
 }
 
+// Given a current lane number, it will translate that to a starting search index and find the next available lane searching in increasing lane order
+int next_lane_up(int start_index) {
+  if (start_index < 0 || start_index >= Num_Lanes) { start_index = 0; }
+
+  int searches = 0;
+  for (int l = start_index; searches < Num_Lanes; l++){
+    if (lanes[l].car_p == NULL) { return lanes[l].number; }
+    if (l >= Num_Lanes - 1) { l = -1; }
+    searches++;
+  }
+  return 0;
+}
+
+// Given a current lane number, it will translate that to a starting search index and find the next available lane searching in decreasing lane order
+int next_lane_down(int start_index) {
+  if (start_index <= 1 || start_index > Num_Lanes) { start_index = Num_Lanes + 1; }
+
+  int searches = 0;
+  for (int l = (start_index - 2); searches < Num_Lanes; l--){
+    if (lanes[l].car_p == NULL) { return lanes[l].number; }
+    if (l <= 0) { l = Num_Lanes; }
+    searches++;
+  }
+  return 0;
+}
+
+// Select a lane to assign to a car directly afterwards
+int Car_Lane_Select() {
+  int cur_lane = next_lane_up(0);
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("Select Lane");
+  lcd.setCursor(6, 0);
+  lcd.print(cur_lane);
+
+  int start_pressed = Read_Buttons_Start();
+  while(start_pressed == 0){
+    Rotary_Encoder();
+    if (Encoder_Position_New > Encoder_Position_Old) {  // Watch the Rotary Encoder and display the next car number
+      cur_lane = next_lane_up(cur_lane);
+    } else if (Encoder_Position_New < Encoder_Position_Old) {  // Watch the Rotary Encoder and display the previous car number
+      cur_lane = next_lane_down(cur_lane);
+    }
+
+    if (Encoder_Position_New != Encoder_Position_Old) { // Update the lane number and display on LCD
+      playSdWav1.play("TICK.WAV");
+      lcd.setCursor(6, 0);
+      lcd.print(cur_lane);
+      Encoder_Position_Old = Encoder_Position_New;
+    }
+
+    start_pressed = Read_Buttons_Start();
+    if (Read_Buttons_Back() == 1) { return BUTTON_BACK; } // If the player presses back get out of this function
+  }
+
+  return cur_lane;
+}
+
 // Centers the car's number on the LCD
 void Center_Text_Car() {
   String Car_Name = Car_Names[Array_Increment];
@@ -787,13 +871,18 @@ void Center_Text_Car() {
 // Menu Section to Select Car Numbers per Lane
 void Car_Num_Lane_Assign() {
   int Car_Names_Size = sizeof(Car_Names) / sizeof(Car_Names[0]);
-  int Screen_Rotary_Update = 0;
 
   if (Toggle_Menu_Initialize == 1) {  // Initialization of the Cars Menu
     Array_Increment = 0;
     Time_Reference_Debounce = Time_Current;
     Monitor_Start = 0;
     Toggle_Menu_Initialize = 0;
+
+    // Select the lane the user wants to put their car in
+    int selected_lane = Car_Lane_Select();
+    if (selected_lane == BUTTON_BACK) { return; } // If the user wanted out of the lane select don't configure anything else and exit
+    Num_Lane = selected_lane;
+
     lcd.clear();
     lcd.setCursor(1, 0);
     lcd.print("Lane");
@@ -813,17 +902,15 @@ void Car_Num_Lane_Assign() {
     if (Array_Increment >= Car_Names_Size) {
       Array_Increment = 0;
     }
-    Screen_Rotary_Update = 1;
   } else if (Encoder_Position_New < Encoder_Position_Old) {  // Watch the Rotary Encoder and display the previous car number
     Time_Reference_Debounce = Time_Current;
     Array_Increment--;
     if (Array_Increment < 0) {
       Array_Increment = Car_Names_Size - 1;
     }
-    Screen_Rotary_Update = 1;
   }
 
-  if (Screen_Rotary_Update == 1) { // Update the car number and display on LCD
+  if (Encoder_Position_New != Encoder_Position_Old) { // Update the car number and display on LCD
     playSdWav1.play("TICK.WAV");
     lcd.setCursor(0, 1);
     lcd.print("                ");
@@ -837,16 +924,26 @@ void Car_Num_Lane_Assign() {
   if (Monitor_Start != 1 || Monitor_Last_Press_Start != 0 || Time_Current <= (Time_Reference_Debounce + Debounce_Button)) { return; }
 
   Toggle_Menu_Initialize = 1;
-  cars[Num_Lane - 1].number = Array_Increment;
-  lanes[Num_Lane - 1].car_p = &cars[Num_Lane - 1];  // Set up the 2 car & lane objects to reference each other
-  cars[Num_Lane - 1].lane_p = &lanes[Num_Lane - 1]; // Set up the 2 car & lane objects to reference each other
-  if (Num_Lane == Num_Racers) {
+  cars[Configured_Racers].number = Array_Increment;
+  cars[Configured_Racers].lane = Num_Lane;
+  cars[Configured_Racers].place = Num_Lane;
+
+  // Look for the lane struct that matches the lane number selected
+  for (int l = 0; l < Num_Lanes; l++) {
+    if (lanes[l].number != Num_Lane) { continue; }
+    lanes[l].car_p = &cars[Configured_Racers];  // Set up the 2 car & lane objects to reference each other
+    cars[Configured_Racers].lane_p = &lanes[l]; // Set up the 2 car & lane objects to reference each other
+    break;
+  }
+
+  Configured_Racers++;
+  if (Configured_Racers == Num_Racers) {
+    // We want to ensure all cars start in lane order
+    qsort(cars, Num_Lanes, sizeof(struct Car), lane_order);
     Menu_Start_Race = 1;
     Menu_Car_Num_Lane = 0;
     return;
   }
-
-  Num_Lane++;
 }
 
 // Menu Section to Clear Lap Record from EEPROM
@@ -1475,6 +1572,7 @@ void ClearRace() {
   Num_Laps = 5;
   Num_Racers = 4;
   Num_Lane = 1;
+  Configured_Racers = 0;
 
   // Set all cars back to their default values
   cars[0] = (struct Car){ .lane = 96, .number = 10, .cur_lap = 0, .place = 1, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
