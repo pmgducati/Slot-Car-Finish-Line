@@ -129,7 +129,7 @@ unsigned long sound_buffer;  //Time (Milliseconds) buffer to avoid sound stompin
 // Struct (or class/object) that defines everything that a car needs to have
 struct Car {
   int lane;                  // Lane the car is in
-  struct Lane *lane_p;       // A pointer to the lane object the car is present in
+  struct Lane *p_lane;       // A pointer to the lane object the car is present in
   int number;                // The number that represents which car type is in use
   int cur_lap;               // Current lap the car is on
   int place;                 // Place the car is currently in
@@ -142,7 +142,7 @@ struct Car {
 // Struct (or class/object) that defines everything that a lane needs to have
 struct Lane {
   int number;                // Lane number
-  struct Car *car_p;         // A pointer to the car object present in the lane
+  struct Car *p_car;         // A pointer to the car object present in the lane
   int np[4];                 // Lane LEDs array
   int relay;                 // Controls the Relay for the lane in the Control Box
   int monitor_lap;           // Lap counter switch for the lane
@@ -226,7 +226,7 @@ int EEPROMReadInt(int address) {
 }
 
 // Reads the start button and won't exit the function until the user stops pressing it
-int Read_Buttons_Start(){
+int ReadButtonsStart(){
   int button_pressed = 0; // Was the button pressed at all
   int button_status = 0;  // The current status of the button
 
@@ -238,7 +238,7 @@ int Read_Buttons_Start(){
 }
 
 // Reads the back button and won't exit the function until the user stops pressing it
-int Read_Buttons_Back(){
+int ReadButtonsBack(){
   int button_pressed = 0; // Was the button pressed at all
   int button_status = 0;  // The current status of the button
 
@@ -256,9 +256,7 @@ void setup() {
   AudioMemory(8);
   SPI.setMOSI(SDCARD_MOSI_PIN);
   SPI.setSCK(SDCARD_SCK_PIN);
-  if (!(SD.begin(SDCARD_CS_PIN))) {
-    while (1) {
-    }
+  while (!(SD.begin(SDCARD_CS_PIN))) {
   }
 
   // Set up each of our cars with default values
@@ -804,12 +802,12 @@ void Number_of_Laps() {
 }
 
 // Given a current lane number, it will translate that to a starting search index and find the next available lane searching in increasing lane order
-int next_lane_up(int start_index) {
+int next_lane_up(int start_index = 0) {
   if (start_index < 0 || start_index >= Num_Lanes) { start_index = 0; }
 
   int searches = 0;
   for (int l = start_index; searches < Num_Lanes; l++){
-    if (lanes[l].car_p == NULL) { return lanes[l].number; }
+    if (lanes[l].p_car == NULL) { return lanes[l].number; }
     if (l >= Num_Lanes - 1) { l = -1; }
     searches++;
   }
@@ -817,12 +815,12 @@ int next_lane_up(int start_index) {
 }
 
 // Given a current lane number, it will translate that to a starting search index and find the next available lane searching in decreasing lane order
-int next_lane_down(int start_index) {
+int next_lane_down(int start_index = 0) {
   if (start_index <= 1 || start_index > Num_Lanes) { start_index = Num_Lanes + 1; }
 
   int searches = 0;
   for (int l = (start_index - 2); searches < Num_Lanes; l--){
-    if (lanes[l].car_p == NULL) { return lanes[l].number; }
+    if (lanes[l].p_car == NULL) { return lanes[l].number; }
     if (l <= 0) { l = Num_Lanes; }
     searches++;
   }
@@ -838,7 +836,7 @@ int Car_Lane_Select() {
   lcd.setCursor(6, 0);
   lcd.print(cur_lane);
 
-  int start_pressed = Read_Buttons_Start();
+  int start_pressed = ReadButtonsStart();
   while(start_pressed == 0){
     Rotary_Encoder();
     if (Encoder_Position_New > Encoder_Position_Old) {  // Watch the Rotary Encoder and display the next car number
@@ -854,8 +852,8 @@ int Car_Lane_Select() {
       Encoder_Position_Old = Encoder_Position_New;
     }
 
-    start_pressed = Read_Buttons_Start();
-    if (Read_Buttons_Back() == 1) { return BUTTON_BACK; } // If the player presses back get out of this function
+    start_pressed = ReadButtonsStart();
+    if (ReadButtonsBack() == 1) { return BUTTON_BACK; } // If the player presses back get out of this function
   }
 
   return cur_lane;
@@ -931,8 +929,8 @@ void Car_Num_Lane_Assign() {
   // Look for the lane struct that matches the lane number selected
   for (int l = 0; l < Num_Lanes; l++) {
     if (lanes[l].number != Num_Lane) { continue; }
-    lanes[l].car_p = &cars[Configured_Racers];  // Set up the 2 car & lane objects to reference each other
-    cars[Configured_Racers].lane_p = &lanes[l]; // Set up the 2 car & lane objects to reference each other
+    lanes[l].p_car = &cars[Configured_Racers];  // Set up the 2 car & lane objects to reference each other
+    cars[Configured_Racers].p_lane = &lanes[l]; // Set up the 2 car & lane objects to reference each other
     break;
   }
 
@@ -1268,7 +1266,7 @@ void Race_Metrics() {
 
   // When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter
   for (int c = 0; c < Num_Racers; c++) {
-    if (cars[c].lane_p->state == LOW && Time_Current > (cars[c].total_time + Debounce_Track)) {
+    if (cars[c].p_lane->state == LOW && Time_Current > (cars[c].total_time + Debounce_Track)) {
       cars[c].lap_time = (Time_Current - cars[c].total_time);
       cars[c].total_time = Time_Current;
       cars[c].cur_lap = cars[c].cur_lap + 1;
@@ -1445,22 +1443,22 @@ void LapCountdown() {
   for (int c = 0; c < Num_Racers; c++) {
     switch (Num_Laps - cars[c].cur_lap) {
       case 1: // 1 lap remaining
-        leds[cars[c].lane_p->np[0]] = CRGB(0, 0, 0);
-        leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[2]] = CRGB(0, 0, 0);
-        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[0]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[2]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[3]] = CRGB(0, 0, 0);
         break;
       case 2: // 2 laps remaining
-        leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[1]] = CRGB(0, 0, 0);
-        leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[1]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[3]] = CRGB(0, 0, 0);
         break;
       case 3: // 3 laps remaining
-        leds[cars[c].lane_p->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
-        leds[cars[c].lane_p->np[3]] = CRGB(0, 0, 0);
+        leds[cars[c].p_lane->np[0]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[1]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[2]] = CHSV(NP_Boot_Colors[0], 255, 255);
+        leds[cars[c].p_lane->np[3]] = CRGB(0, 0, 0);
         break;
     }
   }
@@ -1485,7 +1483,7 @@ void End_Race() {
       }
       cars[c].last_lap = 1;
       for (int i = 0; i < 4; i++) {
-        leds[cars[c].lane_p->np[i]] = CRGB(255, 255, 255);
+        leds[cars[c].p_lane->np[i]] = CRGB(255, 255, 255);
       }
     }
   }
@@ -1495,10 +1493,10 @@ void End_Race() {
   // Action When a Car Finishes the Race
   for (int c = 0; c < Num_Racers; c++) {
     if (cars[c].cur_lap <= Num_Laps || cars[c].finish != 0) { continue; }
-    digitalWrite(cars[c].lane_p->relay, HIGH); // Cut Power to the Lane
+    digitalWrite(cars[c].p_lane->relay, HIGH); // Cut Power to the Lane
     cars[c].finish = 1;
     for (int i = 0; i < 4; i++) {
-      leds[cars[c].lane_p->np[i]] = CRGB(0, 0, 0);
+      leds[cars[c].p_lane->np[i]] = CRGB(0, 0, 0);
     }
     FastLED.show();
     delay(10);
@@ -1507,21 +1505,21 @@ void End_Race() {
     switch (cars[c].place) {
       case 1:
         sound_buffer = Time_Current;
-        leds[cars[c].lane_p->np[1]] = CRGB(0, 255, 255);
+        leds[cars[c].p_lane->np[1]] = CRGB(0, 255, 255);
         break;
       case 2:
         if (sound_buffer <= (Time_Current - 8500)) {
           playSdWav1.play("RECORD.WAV");
         }
-        leds[cars[c].lane_p->np[0]] = CRGB(0, 255, 255);
-        leds[cars[c].lane_p->np[2]] = CRGB(0, 255, 255);
+        leds[cars[c].p_lane->np[0]] = CRGB(0, 255, 255);
+        leds[cars[c].p_lane->np[2]] = CRGB(0, 255, 255);
         break;
       case 3:
         if (sound_buffer <= (Time_Current - 8500)) {
           playSdWav1.play("RECORD.WAV");
         }
         for (int i = 0; i < 3; i++) {
-          leds[cars[c].lane_p->np[i]] = CRGB(0, 255, 255);
+          leds[cars[c].p_lane->np[i]] = CRGB(0, 255, 255);
         }
         break;
       case 4:
@@ -1529,7 +1527,7 @@ void End_Race() {
           playSdWav1.play("RECORD.WAV");
         }
         for (int i = 0; i < 4; i++) {
-          leds[cars[c].lane_p->np[i]] = CRGB(0, 255, 255);
+          leds[cars[c].p_lane->np[i]] = CRGB(0, 255, 255);
         }
         break;
     }
