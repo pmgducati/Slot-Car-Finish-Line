@@ -1269,7 +1269,7 @@ void Race_Metrics() {
   // When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter
   for (int c = 0; c < Num_Racers; c++) {
     if (cars[c].lane_p->state == LOW && Time_Current > (cars[c].total_time + Debounce_Track)) {
-      cars[c].lap_time = (Time_Current - cars[0].total_time);
+      cars[c].lap_time = (Time_Current - cars[c].total_time);
       cars[c].total_time = Time_Current;
       cars[c].cur_lap = cars[c].cur_lap + 1;
 
