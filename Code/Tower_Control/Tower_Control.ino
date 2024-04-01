@@ -226,7 +226,7 @@ int EEPROMReadInt(int address) {
 }
 
 // Reads the start button and won't exit the function until the user stops pressing it
-int ReadButtonsStart(){
+int ReadButtonStart(){
   int button_pressed = 0; // Was the button pressed at all
   int button_status = 0;  // The current status of the button
 
@@ -238,7 +238,7 @@ int ReadButtonsStart(){
 }
 
 // Reads the back button and won't exit the function until the user stops pressing it
-int ReadButtonsBack(){
+int ReadButtonBack(){
   int button_pressed = 0; // Was the button pressed at all
   int button_status = 0;  // The current status of the button
 
@@ -836,7 +836,7 @@ int Car_Lane_Select() {
   lcd.setCursor(6, 0);
   lcd.print(cur_lane);
 
-  int start_pressed = ReadButtonsStart();
+  int start_pressed = ReadButtonStart();
   while(start_pressed == 0){
     Rotary_Encoder();
     if (Encoder_Position_New > Encoder_Position_Old) {  // Watch the Rotary Encoder and display the next car number
@@ -852,8 +852,8 @@ int Car_Lane_Select() {
       Encoder_Position_Old = Encoder_Position_New;
     }
 
-    start_pressed = ReadButtonsStart();
-    if (ReadButtonsBack() == 1) { return BUTTON_BACK; } // If the player presses back get out of this function
+    start_pressed = ReadButtonStart();
+    if (ReadButtonBack() == 1) { return BUTTON_BACK; } // If the player presses back get out of this function
   }
 
   return cur_lane;
