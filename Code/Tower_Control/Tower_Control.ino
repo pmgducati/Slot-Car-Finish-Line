@@ -147,6 +147,7 @@ struct Lane {
   int relay;                 // Controls the Relay for the lane in the Control Box
   int monitor_lap;           // Lap counter switch for the lane
   int state;                 // In Track Lap Counter Monitors State, per lane
+  int prev_state;            // In Track Lap Counter Monitors Previous State, per lane, prevents duplicate lap counting
   int penalty;               // Flag if car crosses start line before the green light, per lane
 };
 
@@ -266,10 +267,10 @@ void setup() {
   cars[3] = (struct Car){ .lane = 99, .number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
 
   // Set up each of our lanes with default values
-  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = 0, .penalty = 0 };
-  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = 0, .penalty = 0 };
-  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = 0, .penalty = 0 };
-  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = 0, .penalty = 0 };
+  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = -1, , .prev_state = -1, .penalty = 0 };
 
   //Read EEPROM Variables and replace default values
   Record_Lap = EEPROMReadlong(0x02);
@@ -1261,12 +1262,13 @@ void Race_Metrics() {
 
   // Reads the lap counter pins for car crossings
   for (int l = 0; l < Num_Lanes; l++) {
+    lanes[l].prev_state = lanes[l].state
     lanes[l].state = digitalRead(lanes[l].monitor_lap);
   }
 
   // When a car crosses the pin, record the current lap time and normalize for the display, mark time for Last Lap and increment the Lap counter
   for (int c = 0; c < Num_Racers; c++) {
-    if (cars[c].p_lane->state == LOW && Time_Current > (cars[c].total_time + Debounce_Track)) {
+    if (cars[c].p_lane->state == LOW && cars[c].p_lane->state != cars[c].p_lane->prev_state && Time_Current > (cars[c].total_time + Debounce_Track)) {
       cars[c].lap_time = (Time_Current - cars[c].total_time);
       cars[c].total_time = Time_Current;
       cars[c].cur_lap = cars[c].cur_lap + 1;
@@ -1579,10 +1581,10 @@ void ClearRace() {
   cars[3] = (struct Car){ .lane = 99, .number = 10, .cur_lap = 0, .place = 4, .lap_time = 0, .total_time = 0, .last_lap = 0, .finish = 0 };
 
   // Set up each of our lanes with default values
-  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = 0, .penalty = 0 };
-  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = 0, .penalty = 0 };
-  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = 0, .penalty = 0 };
-  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = 0, .penalty = 0 };
+  lanes[0] = (struct Lane){ .number = 1, .np = { 11, 10, 9, 12 }, .relay = RELAY_LANE_1, .monitor_lap = MONITOR_LAP_LANE_1, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[1] = (struct Lane){ .number = 2, .np = { 8, 7, 6, 13 },   .relay = RELAY_LANE_2, .monitor_lap = MONITOR_LAP_LANE_2, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[2] = (struct Lane){ .number = 3, .np = { 5, 4, 3, 14 },   .relay = RELAY_LANE_3, .monitor_lap = MONITOR_LAP_LANE_3, .state = -1, , .prev_state = -1, .penalty = 0 };
+  lanes[3] = (struct Lane){ .number = 4, .np = { 2, 1, 0, 15 },   .relay = RELAY_LANE_4, .monitor_lap = MONITOR_LAP_LANE_4, .state = -1, , .prev_state = -1, .penalty = 0 };
 
   // Clear Leaderboard Display
   int Player_Index;
