@@ -168,8 +168,8 @@ int Delay_Yellow_Light = 750;    //Delay between Yellow Lights
 int Delay_Red_Light = 4250;      //Time for Red Lights
 int Delay_Stop_Race = 10000;     //Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
 
-//Relay Penality Variables
-int Delay_Penality = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
+//Relay Penalty Variables
+int Delay_Penalty = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 //Menu Arrays
 //Car Names and Numbers Displayed on LCD
@@ -275,7 +275,7 @@ void setup() {
   //Read EEPROM Variables and replace default values
   Record_Lap = EEPROMReadlong(0x02);
   Record_Car = EEPROM.read(0x00);
-  Delay_Penality = EEPROMReadInt(0x08);
+  Delay_Penalty = EEPROMReadInt(0x08);
   Delay_Stop_Race = EEPROMReadInt(0x06);
   Debounce_Track = EEPROMReadInt(0x10);
 
@@ -601,23 +601,23 @@ void Menu_Penalty() {
     lcd.setCursor(0, 0);
     lcd.print("Penalty Timeout");
     lcd.setCursor(6, 1);
-    lcd.print(Delay_Penality);
+    lcd.print(Delay_Penalty);
     Toggle_Menu_Initialize = 0;
   }
 
   Rotary_Encoder();
   if (Encoder_Position_New > Encoder_Position_Old) { // Watch the Rotary Encoder and add to the number of racers
     Time_Reference_Debounce = Time_Current;
-    Delay_Penality = Delay_Penality + 500;
-    if (Delay_Penality > 5000) {
-      Delay_Penality = 5000;
+    Delay_Penalty = Delay_Penalty + 500;
+    if (Delay_Penalty > 5000) {
+      Delay_Penalty = 5000;
     }
     Screen_Rotary_Update = 1;
   } else if (Encoder_Position_New < Encoder_Position_Old) { // Watch the Rotary Encoder and subtract from the number of racers
     Time_Reference_Debounce = Time_Current;
-    Delay_Penality = Delay_Penality - 500;
-    if (Delay_Penality < 500) {
-      Delay_Penality = 500;
+    Delay_Penalty = Delay_Penalty - 500;
+    if (Delay_Penalty < 500) {
+      Delay_Penalty = 500;
     }
     Screen_Rotary_Update = 1;
   }
@@ -628,13 +628,13 @@ void Menu_Penalty() {
     lcd.setCursor(0, 0);
     lcd.print("Penalty Timeout");
     lcd.setCursor(6, 1);
-    lcd.print(Delay_Penality);
+    lcd.print(Delay_Penalty);
     Time_Reference_Debounce = Time_Current;
     Encoder_Position_Old = Encoder_Position_New;
   }
 
   if (Monitor_Start == 1 && Monitor_Last_Press_Start == 0 && Time_Current > (Time_Reference_Debounce + Debounce_Button)) { // Set the desired value for Penalty Duration and save to EEPROM
-    EEPROMWriteInt(0x10, Delay_Penality);
+    EEPROMWriteInt(0x10, Delay_Penalty);
     Options_Penalty = 0;
     Menu_Options = 1;
     Toggle_Menu_Initialize = 1;
@@ -1077,7 +1077,7 @@ void Start_Race() {
   }
 
   // If a car crosses the start line before the green light, they are flagged with a penalty and will be part of this function below
-  if (penalty == 1) { Penality_Start(); }
+  if (penalty == 1) { Penalty_Start(); }
 
   // Green Light for non-penalty cars for the Start of the Race
   if (Time_Current > (Time_Reference_Debounce + Delay_Yellow_Light) && Array_Increment == 3) {
@@ -1099,8 +1099,8 @@ void Start_Race() {
   }
 }
 
-// If a car crosses the start line before the green light, they are flagged with a penality and the red lights turn on over the lane and power is cut for the penality duration
-void Penality_Start() {
+// If a car crosses the start line before the green light, they are flagged with a penalty and the red lights turn on over the lane and power is cut for the penalty duration
+void Penalty_Start() {
   for (int l = 0; l < Num_Lanes; l++) {
     if (lanes[l].penalty == 0) { continue; }
     digitalWrite(lanes[l].relay, HIGH);
@@ -1245,7 +1245,7 @@ void Race_Metrics() {
   // Watches for penalty flags on any lane, restores power to the lane(s) after penalty duration
   int penalty = 0;
   for (int l = 0; l < Num_Lanes; l++) {
-    if (lanes[l].penalty == 0 || Time_Current <= (Time_Reference_Debounce + Delay_Penality)) { continue; }
+    if (lanes[l].penalty == 0 || Time_Current <= (Time_Reference_Debounce + Delay_Penalty)) { continue; }
 
     // If there was a penalty on the lane and the penalty delay has expired
     digitalWrite(lanes[l].relay, LOW);
