@@ -163,20 +163,21 @@ enum class InputEvent {
   BUTTON_RE
 };
 
-//Rotary Encoder - Logs the position of the Rotary Encoder
+// Rotary Encoder - Logs the position of the Rotary Encoder
 long Encoder_Position_Old = -999;
 long Encoder_Position_New;
 
 // Timing
 unsigned long pauseStartTime = 0;    // Time (Milliseconds) to ajdust in the event the race is paused
 unsigned long totalPauseDuration = 0;   // Total time paused for when multiple pauses happen
+
 // Debounce timers
 unsigned long debounceEncoder = 125; // Debounce time (Milliseconds) for the Rotary Encoder
-unsigned long Debounce_Button = 200; // Debounce time (Milliseconds) for a Button Press
-unsigned int Debounce_Track = 1000;  // Default debounce time (Milliseconds) when a car passes the start line (Can be Modified in Options 500-10000 and saved to EEPROM)
+unsigned long debounceButton = 200; // Debounce time (Milliseconds) for a Button Press
+unsigned int debounceTrack = 1000;  // Default debounce time (Milliseconds) when a car passes the start line (Can be Modified in Options 500-10000 and saved to EEPROM)
 unsigned long debounceTick = 150;    // Debounce time for preventing too many ticks when displaying new values selected via rotary encoder
 
-//Race Identifiers
+// Race Identifiers
 int Num_Laps = 5;            //Default number of laps in the Race (Can be Modified in Menu 5-99)
 int MIN_LAPS = 5;            //Minimum number of laps in a race
 int MAX_LAPS = 99;           //Maximum number of laps in a race
@@ -185,7 +186,7 @@ int Num_Racers = Num_Lanes;  //Default number of Racers in the Race (Can be Modi
 int Configured_Racers = 0;   //How many cars have been configured
 int Car_Config_Index = 0;    //Tracks which car is having its number and lane assigned
 
-//Race Information
+// Race Information
 int Current_Lap_Num = 0;           //Lap Count in Current Race
 unsigned long Record_Lap = 99999;  //Default Lap Record Time (Actual is called from EEPROM)
 int Record_Car_Num;                //Array Identifer of the record setting car
@@ -205,6 +206,9 @@ struct Car {
   int finish;                // Has the car finished the race
 };
 
+// Declare our cars array and fill them in with default values in the loop
+struct Car *cars = (Car *)malloc(Num_Lanes * sizeof *cars);
+
 // Struct (or class/object) that defines everything that a lane needs to have
 struct Lane {
   int number;                  // Lane number
@@ -218,21 +222,18 @@ struct Lane {
   unsigned long penalty_time;  // The race time the penalty occurred (Milliseconds)
 };
 
-// Declare our cars array and fill them in with default values in the loop
-struct Car *cars = (Car *)malloc(Num_Lanes * sizeof *cars);
-
 // Declare our lanes array and fill them in with default values in the loop
 struct Lane *lanes = (Lane *)malloc(Num_Lanes * sizeof *lanes);
 
 // Neopixel Variables
 int NP_Brightness = 84;          //Set Neopixel Brightness
+
+// Delay variables
 int Delay_Start_Sequence = 100;  //Start Animation Speed (Higher = Slower)
 int Delay_Dim = 50;              //Dimming Speed (Higher = Slower)
 unsigned int Delay_Yellow_Light = 750;    //Delay between Yellow Lights
 unsigned int Delay_Red_Light = 4250;      //Time for Red Lights
 int Delay_Stop_Race = 10000;     //Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
-
-// Relay Penalty Variables
 int Delay_Penalty = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 // Menu Arrays
@@ -306,7 +307,7 @@ int ReadButtonStart(bool waitForRelease = true) {
 
     if (buttonStatus == HIGH && buttonPressed == 0) {
       // Only register if enough time passed since last valid press
-      if ((currentPressTime - previousPressTime) > Debounce_Button) {
+      if ((currentPressTime - previousPressTime) > debounceButton) {
         buttonPressed = buttonStatus;  // If we saw the button pressed at any time, set the flag
         previousPressTime = currentPressTime;
         if (!waitForRelease) return buttonStatus;
@@ -331,7 +332,7 @@ int ReadButtonBack(bool waitForRelease = true) {
 
     if (buttonStatus == HIGH && buttonPressed == 0) {
       // Only register if enough time passed since last valid press
-      if ((currentPressTime - previousPressTime) > Debounce_Button) {
+      if ((currentPressTime - previousPressTime) > debounceButton) {
         buttonPressed = buttonStatus;  // If we saw the button pressed at any time, set the flag
         previousPressTime = currentPressTime;
         if (!waitForRelease) return buttonStatus;
@@ -356,7 +357,7 @@ int ReadButtonStop(bool waitForRelease = true) {
 
     if (buttonStatus == HIGH && buttonPressed == 0) {
       // Only register if enough time passed since last valid press
-      if ((currentPressTime - previousPressTime) > Debounce_Button) {
+      if ((currentPressTime - previousPressTime) > debounceButton) {
         buttonPressed = buttonStatus;  // If we saw the button pressed at any time, set the flag
         previousPressTime = currentPressTime;
         if (!waitForRelease) return buttonStatus;
@@ -414,7 +415,7 @@ InputEvent readInputs(bool waitForRelease = true) {
 }
 
 // ===================== Setup Helpers =====================
-// Helper mappings
+// Lane Helper mappings
 const uint8_t RELAY_PINS[4] = { RELAY_LANE_1, RELAY_LANE_2, RELAY_LANE_3, RELAY_LANE_4 };
 const uint8_t MONITOR_PINS[4] = { MONITOR_LAP_LANE_1, MONITOR_LAP_LANE_2, MONITOR_LAP_LANE_3, MONITOR_LAP_LANE_4 };
 
@@ -479,7 +480,7 @@ void setup() {
   Record_Car = EEPROM.read(0x00);
   Delay_Penalty = EEPROMReadInt(0x08);
   Delay_Stop_Race = EEPROMReadInt(0x06);
-  Debounce_Track = EEPROMReadInt(0x10);
+  debounceTrack = EEPROMReadInt(0x10);
 
   // Set up the 7-Segment LED Panels
   Player_PolePositions[0].begin(0x70);  // Pass in the address for the Place 1 and 2 Car Numbers
@@ -536,7 +537,7 @@ void loop() {
       break;
 
     case MenuState::OPTIONS_TRACK_DEBOUNCE_TIMING:
-      Option_Debounce_Track();
+      Option_debounceTrack();
       break;
 
     case MenuState::OPTIONS_CLEAR_LAP_RECORD:
@@ -868,7 +869,7 @@ void Option_Penalty() {
 }
 
 // Track Debounce Value Selection and Set
-void Option_Debounce_Track() {
+void Option_debounceTrack() {
   auto updateDisplay = [](int index) {
     static bool firstRun = true;
     static unsigned long lastTick = 0;
@@ -890,7 +891,7 @@ void Option_Debounce_Track() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Lane Debouncing");
-  updateDisplay(Debounce_Track);
+  updateDisplay(debounceTrack);
 
   // --- Menu loop ---
   unsigned int lastValue = 0;
@@ -899,16 +900,16 @@ void Option_Debounce_Track() {
 
     switch (event) {
       case InputEvent::ENCODER_RIGHT:
-        Debounce_Track = min(Debounce_Track + 500u, 5000u);
+        debounceTrack = min(debounceTrack + 500u, 5000u);
         break;
 
       case InputEvent::ENCODER_LEFT:
-        Debounce_Track = max(Debounce_Track - 500u, 500u);
+        debounceTrack = max(debounceTrack - 500u, 500u);
         break;
 
       case InputEvent::BUTTON_START:
         // Save and return to main options
-        EEPROMWriteInt(0x08, Debounce_Track);
+        EEPROMWriteInt(0x08, debounceTrack);
         currentMenu = MenuState::MENU_OPTIONS;
         return;
 
@@ -925,9 +926,9 @@ void Option_Debounce_Track() {
     }
 
     // --- Update LCD only on change ---
-    if (Debounce_Track != lastValue) {
-      updateDisplay(Debounce_Track);
-      lastValue = Debounce_Track;
+    if (debounceTrack != lastValue) {
+      updateDisplay(debounceTrack);
+      lastValue = debounceTrack;
     }
   }
 }
@@ -1618,18 +1619,6 @@ void Start_Race() {
   }
 }
 
-// If a car crosses the start line before the green light, they are flagged with a penalty and the red lights turn on over the lane and power is cut for the penalty duration
-void Penalty_Start() {
-  for (int l = 0; l < Num_Lanes; l++) {
-    if (lanes[l].penalty == 0) { continue; }
-    digitalWrite(lanes[l].relay, HIGH);
-    for (int i = 0; i < 3; i++) {
-      leds[lanes[l].np[i]] = CHSV(NP_Boot_Colors[2], 255, 255);
-    }
-  }
-  FastLED.show();
-}
-
 // Temorarpy Pause of the Race
 void Pause_Race() {
   static bool showingPausedMsg = false;    // replaces Toggle_Race_Hazard
@@ -1824,7 +1813,7 @@ void Race_Metrics() {
     const bool lapCrossed = (
       cars[c].p_lane->state == LOW &&
       cars[c].p_lane->state != cars[c].p_lane->prev_state &&
-      now > (cars[c].total_time + Debounce_Track)
+      now > (cars[c].total_time + debounceTrack)
     );
 
     if (lapCrossed) {
@@ -1837,7 +1826,7 @@ void Race_Metrics() {
     }
 
     // --- Check for new lap record ---
-    if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > Debounce_Track) {
+    if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > debounceTrack) {
       Record_Lap = cars[c].lap_time;
       Record_Car_Num = c;
       Record_Car = cars[c].number;
