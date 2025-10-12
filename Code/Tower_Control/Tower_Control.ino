@@ -226,15 +226,15 @@ struct Lane {
 struct Lane *lanes = (Lane *)malloc(Num_Lanes * sizeof *lanes);
 
 // Neopixel Variables
-int NP_Brightness = 84;          //Set Neopixel Brightness
+int NP_Brightness = 84;          // Set Neopixel Brightness
 
 // Delay variables
-int Delay_Start_Sequence = 100;  //Start Animation Speed (Higher = Slower)
-int Delay_Dim = 50;              //Dimming Speed (Higher = Slower)
-unsigned int Delay_Yellow_Light = 750;    //Delay between Yellow Lights
-unsigned int Delay_Red_Light = 4250;      //Time for Red Lights
-int Delay_Stop_Race = 10000;     //Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
-int Delay_Penalty = 5000;  //Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
+int Delay_Start_Sequence = 100;  // Start Animation Speed (Higher = Slower)
+int Delay_Dim = 50;              // Dimming Speed (Higher = Slower)
+unsigned int Delay_Yellow_Light = 750;  // Delay between Yellow Lights
+unsigned int Delay_Red_Light = 4250;    // Time for Red Lights
+int Delay_Stop_Race = 10000;     // Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
+unsigned long Delay_Penalty = 5000;        // Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 // Menu Arrays
 // Car Names and Numbers Displayed on LCD
@@ -537,7 +537,7 @@ void loop() {
       break;
 
     case MenuState::OPTIONS_TRACK_DEBOUNCE_TIMING:
-      Option_debounceTrack();
+      Option_Debounce_Track();
       break;
 
     case MenuState::OPTIONS_CLEAR_LAP_RECORD:
@@ -829,17 +829,17 @@ void Option_Penalty() {
   updateDisplay(Delay_Penalty);
 
   // --- Menu loop ---
-  int lastValue = -1;
+  unsigned long lastValue = -1;
   while (true) {
     InputEvent event = readInputs();
 
     switch (event) {
       case InputEvent::ENCODER_RIGHT:
-        Delay_Penalty = min(Delay_Penalty + 500, 5000);
+        Delay_Penalty = min(Delay_Penalty + 500u, 5000u);
         break;
 
       case InputEvent::ENCODER_LEFT:
-        Delay_Penalty = max(Delay_Penalty - 500, 500);
+        Delay_Penalty = max(Delay_Penalty - 500u, 500u);
         break;
 
       case InputEvent::BUTTON_START:
@@ -869,7 +869,7 @@ void Option_Penalty() {
 }
 
 // Track Debounce Value Selection and Set
-void Option_debounceTrack() {
+void Option_Debounce_Track() {
   auto updateDisplay = [](int index) {
     static bool firstRun = true;
     static unsigned long lastTick = 0;
