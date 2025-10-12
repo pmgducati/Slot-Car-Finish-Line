@@ -152,13 +152,6 @@ const MenuEntry optionsMenu[] = {
 
 const int optionsMenuCount = sizeof(optionsMenu) / sizeof(optionsMenu[0]);
 
-//Menu Navigation - The variables trigger a menu change when flagged as 1
-int Toggle_Menu_Initialize = 1;
-int Toggle_Race_Metrics = 0;
-int Toggle_Race_Stop = 0;
-int Toggle_Race_Pause = 0;
-int Toggle_Race_Hazard = 0;
-
 // Defines the types of input we can expect
 enum class InputEvent {
   NONE,
@@ -191,13 +184,6 @@ int Num_Lanes = 4;           //Max number of lanes on the race track
 int Num_Racers = Num_Lanes;  //Default number of Racers in the Race (Can be Modified in Menu 1-4)
 int Configured_Racers = 0;   //How many cars have been configured
 int Car_Config_Index = 0;    //Tracks which car is having its number and lane assigned
-
-//Button Status Monitors
-int Monitor_Start = 0;             //Triggers an event when the Start Button is pressed
-int Monitor_Back = 0;              //Triggers an event when the Back Button is pressed
-int Monitor_Stop = 0;              //Triggers an event when the Stop Button is pressed
-int Monitor_Last_Press_Back = 0;   //Flags an event when the Back Button is pressed
-int Monitor_Last_Press_Start = 0;  //Flags an event when the Start Button is pressed
 
 //Race Information
 int Current_Lap_Num = 0;           //Lap Count in Current Race
@@ -675,11 +661,8 @@ void Welcome_Message() {
   }
 
   // Fade out Animation
-  for (int i = 84; i >= 0; i--) {
-    if (i > 1) {
-      i--;
-    }
-    LEDS.setBrightness(i);
+  for (int b = 84; b >= 0; b -= 2) {
+    LEDS.setBrightness(b);
     FastLED.show();
     delay(Delay_Dim);
   }
@@ -1784,7 +1767,7 @@ void Stop_Race() {
   delay(Delay_Stop_Race);
 
   // Fade out animation
-  for (int b = 84; b >= 0; b-= 2) {
+  for (int b = 84; b >= 0; b -= 2) {
     FastLED.setBrightness(b);
     FastLED.show();
     delay(Delay_Dim);
