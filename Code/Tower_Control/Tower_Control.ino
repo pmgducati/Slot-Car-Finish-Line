@@ -168,14 +168,14 @@ long Encoder_Position_Old = -999;
 long Encoder_Position_New;
 
 // Timing
-unsigned long pauseStartTime = 0;    // Time (Milliseconds) to ajdust in the event the race is paused
-unsigned long totalPauseDuration = 0;   // Total time paused for when multiple pauses happen
+unsigned long pauseStartTime = 0;      // Time (Milliseconds) to ajdust in the event the race is paused
+unsigned long totalPauseDuration = 0;  // Total time paused for when multiple pauses happen
 
 // Debounce timers
-unsigned long debounceEncoder = 125; // Debounce time (Milliseconds) for the Rotary Encoder
-unsigned long debounceButton = 200; // Debounce time (Milliseconds) for a Button Press
-unsigned int debounceTrack = 1000;  // Default debounce time (Milliseconds) when a car passes the start line (Can be Modified in Options 500-10000 and saved to EEPROM)
-unsigned long debounceTick = 150;    // Debounce time for preventing too many ticks when displaying new values selected via rotary encoder
+unsigned long debounceEncoder = 125;  // Debounce time (Milliseconds) for the Rotary Encoder
+unsigned long debounceButton = 200;   // Debounce time (Milliseconds) for a Button Press
+unsigned int debounceTrack = 1000;    // Default debounce time (Milliseconds) when a car passes the start line (Can be Modified in Options 500-10000 and saved to EEPROM)
+unsigned long debounceTick = 150;     // Debounce time for preventing too many ticks when displaying new values selected via rotary encoder
 
 // Race Identifiers
 int Num_Laps = 5;            //Default number of laps in the Race (Can be Modified in Menu 5-99)
@@ -1787,7 +1787,7 @@ void Race_Metrics() {
   bool penaltyRestored = false;
   for (int l = 0; l < Num_Lanes; l++) {
     if (lanes[l].penalty == 0) continue;
-    if (now <= (lanes[l].penalty_time + Delay_Penalty)) continue;
+    if ((now - lanes[l].penalty_time) <= Delay_Penalty) continue;
 
     // Restore lane power
     digitalWrite(lanes[l].relay, LOW);
