@@ -245,7 +245,7 @@ String Car_Numbers[11] = { "01", "03", "05", "05", "33", "51", "57", "80", "88",
 String Rec_Reset[20] = { "NO", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X", "YES", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X" };
 
 // --- Function Declarations ---
-void Options(bool showMenu);
+void Options(bool reset);
 
 // Function to help qsort cars in place order
 int cmp_lap_and_total_time(const void *left, const void *right) {
@@ -2033,7 +2033,7 @@ void End_Race() {
         playSdWav1.play("LASTLAP.WAV");
       }
       cars[c].last_lap = 1;
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < NUM_LANES; i++) {
         leds[cars[c].p_lane->np[i]] = CRGB(255, 255, 255);
       }
     }
@@ -2049,7 +2049,7 @@ void End_Race() {
     cars[c].finish = 1;
 
     // Quick blackout
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_LANES; i++) {
       leds[cars[c].p_lane->np[i]] = CRGB(0, 0, 0);
     }
     FastLED.show();
@@ -2124,6 +2124,7 @@ void Clear_Race() {
   Car_Config_Index = 0;
   pauseStartTime = 0;
   totalPauseDuration = 0;
+  myEnc.write(0);
 
   // --- Clear LEDs ---
   FastLED.clear();
