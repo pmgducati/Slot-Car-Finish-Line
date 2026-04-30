@@ -170,10 +170,8 @@ long Encoder_Position_New;
 
 // Timing
 unsigned long pauseStartTime = 0;      // Time (Milliseconds) to ajdust in the event the race is paused
-unsigned long totalPauseDuration = 0;  // Total time paused for when multiple pauses happen
 
 // Debounce timers
-unsigned long debounceEncoder = 125;  // Debounce time (Milliseconds) for the Rotary Encoder
 unsigned long debounceButton = 200;   // Debounce time (Milliseconds) for a Button Press
 unsigned int debounceTrack = 1000;    // Default debounce time (Milliseconds) when a car passes the start line (Can be Modified in Options 500-10000 and saved to EEPROM)
 unsigned long debounceTick = 150;     // Debounce time for preventing too many ticks when displaying new values selected via rotary encoder
@@ -201,8 +199,10 @@ struct Car {
   int number;                // The number that represents which car type is in use
   int cur_lap;               // Current lap the car is on
   int place;                 // Place the car is currently in
-  unsigned long lap_time;    // The time (Milliseconds) of the last time
+  unsigned long lap_time;    // The time (Milliseconds) of the last lap
+  unsigned long prior_lap_ms;// The timestamp of the millis() read at the prior lap
   unsigned long total_time;  // Total race time (Milliseconds)
+  unsigned long start_time;  // Start race time (millis at the race start)
   int last_lap;              // Flag to signal last lap Neopixel and Sound Events
   int finish;                // Has the car finished the race
 };
@@ -234,8 +234,9 @@ int Delay_Start_Sequence = 100;  // Start Animation Speed (Higher = Slower)
 int Delay_Dim = 50;              // Dimming Speed (Higher = Slower)
 unsigned int Delay_Yellow_Light = 750;  // Delay between Yellow Lights
 unsigned int Delay_Red_Light = 4250;    // Time for Red Lights
-int Delay_Stop_Race = 10000;     // Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
-unsigned long Delay_Penalty = 5000;        // Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
+int Delay_Stop_Race = 10000;            // Default time (Milliseconds) for wait on race end before going back to Main Menu (Can be Modified in Options 1000-10000 and saved to EEPROM)
+int Delay_Final_Times_Display = 5000;   // Time to wait (ms) befor displaying a finished racer's final total race time
+unsigned long Delay_Penalty = 5000;     // Default time (Milliseconds) for Penalty duration if a car crosses the track before green (Can be Modified in Options 500-5000 and saved to EEPROM)
 
 // Menu Arrays
 // Car Names and Numbers Displayed on LCD
@@ -1600,6 +1601,7 @@ void Start_Race() {
       stateEntered = true;
       break;
 
+    unsigned long now;
     case RaceState::START_LIGHTS_RED:
       if (stateEntered) {
         // Turn on red lights
@@ -1719,6 +1721,18 @@ void Start_Race() {
       // Transition to active race
       raceState = RaceState::ACTIVE;
       stateEntered = true;
+
+      // Set start time of the race
+      now = millis();
+      for (int c = 0; c < Num_Racers; c++) {
+        cars[c].start_time = now;
+      }
+
+      // Blank out the display of all lanes
+      for (int i = 0; i < Num_Lanes; i++) {
+        Player_Times[i].clear();
+        Player_Times[i].writeDisplay();
+      }
       break;
 
     default:
@@ -1824,11 +1838,11 @@ void Pause_Race() {
     FastLED.show();
 
     unsigned long pauseDuration = millis() - pauseStartTime;
-    totalPauseDuration += pauseDuration;
 
-    // Adjust each car's time forward so their total_time baseline stays aligned
+    // Adjust each car's time forward so their times baseline stays aligned
     for (int c = 0; c < Num_Racers; c++) {
-      cars[c].total_time += pauseDuration;
+      cars[c].start_time += pauseDuration;
+      cars[c].prior_lap_ms += pauseDuration;
     }
 
     showingPausedMsg = false;
@@ -1889,10 +1903,6 @@ void Race_Metrics() {
     lcd.setCursor(0, 0);
     lcd.print("Race In Progress");
 
-    for (int c = 0; c < Num_Racers; c++) {
-      cars[c].total_time = now; // Set start time reference for all cars
-    }
-
     stateEntered = false;
   }
 
@@ -1900,7 +1910,7 @@ void Race_Metrics() {
   bool penaltyRestored = false;
   for (int l = 0; l < Num_Lanes; l++) {
     if (lanes[l].penalty == 0) continue;
-    if ((now - lanes[l].penalty_time) <= Delay_Penalty) continue;
+    if ((now - lanes[l].p_car->start_time) <= Delay_Penalty) continue;
 
     // Restore lane power
     digitalWrite(lanes[l].relay, LOW);
@@ -1922,16 +1932,27 @@ void Race_Metrics() {
   }
 
   // --- Update racer metrics ---
+  now = millis(); // Constant millis() for all the checks on all racers
   for (int c = 0; c < Num_Racers; c++) {
     const bool lapCrossed = (
       cars[c].p_lane->state == LOW &&
       cars[c].p_lane->state != cars[c].p_lane->prev_state &&
-      now > (cars[c].total_time + debounceTrack)
+      (
+        cars[c].cur_lap == 0 || // We need to ignore debounce when starting the race
+        now > (cars[c].prior_lap_ms + debounceTrack)
+      )
     );
 
+    // Calculate timings
     if (lapCrossed) {
-      cars[c].lap_time = now - cars[c].total_time;
-      cars[c].total_time = now;
+      if (cars[c].cur_lap == 1) {
+        cars[c].lap_time = now - cars[c].start_time;
+      } else if (cars[c].cur_lap > 1) {
+        cars[c].lap_time = now - cars[c].prior_lap_ms;
+      }
+
+      cars[c].prior_lap_ms = now;
+      cars[c].total_time = now - cars[c].start_time;
       cars[c].cur_lap++;
 
       Lap_Counter();
@@ -1939,7 +1960,7 @@ void Race_Metrics() {
     }
 
     // --- Check for new lap record ---
-    if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > debounceTrack) {
+    if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > debounceTrack && Current_Lap_Num > 1) { // We need to have completed at least the first lap
       Record_Lap = cars[c].lap_time;
       Record_Cars_Index = c;
       Record_Car_Numbers_Index = cars[c].number;
