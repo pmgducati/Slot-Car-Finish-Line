@@ -1166,7 +1166,7 @@ void Select_Car() {
   Car_Config_Index = findFirstUnconfiguredCar();
 
   // --- Helper for updating the display ---
-  auto updateDisplay = [](int index) {
+  auto updateDisplay = [](int index, const char* extra) {
     static bool firstRun = true;
     static unsigned long lastTick = 0;
     unsigned long now = millis();
@@ -1177,18 +1177,27 @@ void Select_Car() {
     }
     firstRun = false;
 
-    lcd.setCursor(1, 1);
-    lcd.print(index);
+    lcd.setCursor(1, 1);        // Reset cursor to position (1, 1)
+    lcd.print(index);           // Print car number
+    lcd.print(" ");             // Space for clearing any previous star
+    lcd.setCursor(1 + String(index).length(), 1); // Position after the number
+
+    if (extra[0] != '\0') {  // If there's a star, print it
+      lcd.print(extra);
+    }
   };
 
   lcd.clear();
   lcd.setCursor(1, 0);
   lcd.print("Select Car");
-  updateDisplay(Car_Config_Index + 1);
 
   // Menu loop – user is locked here until Start or Back is pressed
   int lastCar = -1;
   while (true) {
+    // Check if the current car has already been configured and set the '*' accordingly
+    const char* configured = (cars[Car_Config_Index].p_lane != nullptr) ? "*" : "";
+    updateDisplay(Car_Config_Index + 1, configured);  // Display car with '*' if configured
+
     InputEvent event = readInputs();
 
     switch (event) {
@@ -1233,7 +1242,8 @@ void Select_Car() {
     }
 
     if (Car_Config_Index != lastCar) {
-      updateDisplay(Car_Config_Index);
+      const char* configured = (cars[Car_Config_Index].p_lane != nullptr) ? "*" : "";
+      updateDisplay(Car_Config_Index + 1, configured);  // Update display with correct car number and '*' if configured
       lastCar = Car_Config_Index;
     }
   }
