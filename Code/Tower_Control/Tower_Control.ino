@@ -75,7 +75,7 @@ int NP_Boot_Transitions = 4;                                                    
 int NP_Race_Start_Red[4] = { 12, 13, 14, 15 };                                       // Red LEDS for Race Start
 
 // 7 Seg LED Assignments
-Adafruit_AlphaNum4 Player_PolePositions[4] = { Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4() };  // Pole Position Car Numbers 1 - 4 ((1 & 2) + (3 & 4))
+Adafruit_AlphaNum4 Player_PolePositions[2] = { Adafruit_AlphaNum4(), Adafruit_AlphaNum4() };                                              // Pole Position Car Numbers 1 - 4 ((1 & 2) + (3 & 4))
 Adafruit_AlphaNum4 Player_Times[4] = { Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4(), Adafruit_AlphaNum4() };          // Pole Position Time 1 - 4
 Adafruit_AlphaNum4 LapRecNum = Adafruit_AlphaNum4();                                                                                      //Lap Counter and Lap Record Car Number
 Adafruit_AlphaNum4 LapTimeRec = Adafruit_AlphaNum4();                                                                                     //Lap Record Time
@@ -483,10 +483,8 @@ void setup() {
   debounceTrack = EEPROMReadInt(0x10);
 
   // Set up the 7-Segment LED Panels
-  Player_PolePositions[0].begin(0x70);  // Pass in the address for the Place 1 and 2 Car Numbers
-  Player_PolePositions[1].begin(0x70);  // Pass in the address for the Place 1 and 2 Car Numbers
-  Player_PolePositions[2].begin(0x71);  // Pass in the address for the Place 3 and 4 Car Numbers
-  Player_PolePositions[3].begin(0x71);  // Pass in the address for the Place 3 and 4 Car Numbers
+  Player_PolePositions[0].begin(0x70);  // Lanes 1 & 2
+  Player_PolePositions[1].begin(0x71);  // Lanes 3 & 4
   LapRecNum.begin(0x72);                // Pass in the address for the Lap Counter and Lap Record Car Number
   LapTimeRec.begin(0x77);               // Pass in the address for the Lap Record Time
   Player_Times[0].begin(0x73);          // Pass in the address for the Place 1 Lap Time
@@ -1459,16 +1457,45 @@ void Car_Num_Lane_Assign() {
 }
 
 // Inital Display of Car Numbers on 7 Segment Displays
+// Display looks like:
+// Row 1: 2-3
+// Row 2: 0-1
+// Row 3: 2-3
+// Row 4: 0-1
 void Pole_Pos_Display(int lane_num, int index) {
-  // If it's an odd numbered lane, display the car number to the left, even numbered player to the right
-  if (lane_num % 2 != 0) {
-    Player_PolePositions[lane_num - 1].writeDigitAscii(2, Car_Numbers[index][0]);
-    Player_PolePositions[lane_num - 1].writeDigitAscii(3, Car_Numbers[index][1]);
-  } else {
-    Player_PolePositions[lane_num - 1].writeDigitAscii(0, Car_Numbers[index][0]);
-    Player_PolePositions[lane_num - 1].writeDigitAscii(1, Car_Numbers[index][1]);
-  }
-  Player_PolePositions[lane_num - 1].writeDisplay();
+  int default_car_index = (sizeof(Car_Numbers) / sizeof(Car_Numbers[0])) - 1;
+  int numbersToShow[4] = {default_car_index, default_car_index, default_car_index, default_car_index};
+
+  for (int lane = 1; lane <= Num_Lanes; lane++) {
+    if (lane == lane_num && index >= 0) {
+        // Show the number currently being selected
+        numbersToShow[lane - 1] = index;
+    } else {
+      // Find the car assigned to this lane
+      for (int i = 0; i < Num_Lanes; i++) {
+        if (cars[i].lane == lane) {
+          numbersToShow[lane - 1] = cars[i].number;
+          break;
+        }
+      }
+    }
+  } // end - for (int lane = 1; lane <= Num_Lanes; lane++) {
+
+  // Row 1
+  Player_PolePositions[0].writeDigitAscii(2, Car_Numbers[numbersToShow[0]][0]);
+  Player_PolePositions[0].writeDigitAscii(3, Car_Numbers[numbersToShow[0]][1]);
+  // Row 2
+  Player_PolePositions[0].writeDigitAscii(0, Car_Numbers[numbersToShow[1]][0]);
+  Player_PolePositions[0].writeDigitAscii(1, Car_Numbers[numbersToShow[1]][1]);
+  // Row 3
+  Player_PolePositions[1].writeDigitAscii(2, Car_Numbers[numbersToShow[2]][0]);
+  Player_PolePositions[1].writeDigitAscii(3, Car_Numbers[numbersToShow[2]][1]);
+  // Row 4
+  Player_PolePositions[1].writeDigitAscii(0, Car_Numbers[numbersToShow[3]][0]);
+  Player_PolePositions[1].writeDigitAscii(1, Car_Numbers[numbersToShow[3]][1]);
+
+  Player_PolePositions[0].writeDisplay();
+  Player_PolePositions[1].writeDisplay();
 }
 
 // Race Start LED Animation/Sounds and Penalty Monitoring
@@ -1982,9 +2009,24 @@ void Display_Leaderboard() {
     }
 
     // Write the player lap time and pole position to the display
-    Player_Times[Player_Index].writeDisplay();
-    Player_PolePositions[Player_Index].writeDisplay();
+    Player_Times[player_i].writeDisplay();
   }
+
+  // Row 1
+  Player_PolePositions[0].writeDigitAscii(2, Car_Numbers[cars[0].number][0]);
+  Player_PolePositions[0].writeDigitAscii(3, Car_Numbers[cars[0].number][1]);
+  // Row 2
+  Player_PolePositions[0].writeDigitAscii(0, Car_Numbers[cars[1].number][0]);
+  Player_PolePositions[0].writeDigitAscii(1, Car_Numbers[cars[1].number][1]);
+  // Row 3
+  Player_PolePositions[1].writeDigitAscii(2, Car_Numbers[cars[2].number][0]);
+  Player_PolePositions[1].writeDigitAscii(3, Car_Numbers[cars[2].number][1]);
+  // Row 4
+  Player_PolePositions[1].writeDigitAscii(0, Car_Numbers[cars[3].number][0]);
+  Player_PolePositions[1].writeDigitAscii(1, Car_Numbers[cars[3].number][1]);
+
+  Player_PolePositions[0].writeDisplay();
+  Player_PolePositions[1].writeDisplay();
 
   // Now we need to get back into lane order
   qsort(cars, Num_Racers, sizeof(struct Car), lane_order);
@@ -2142,6 +2184,10 @@ void Clear_Race() {
     Player_PolePositions[player].clear();
     Player_PolePositions[player].writeDisplay();
   }
+  Player_PolePositions[0].clear();
+  Player_PolePositions[0].writeDisplay();
+  Player_PolePositions[1].clear();
+  Player_PolePositions[1].writeDisplay();
 
   LapTimeRec.clear();
   LapRecNum.clear();
