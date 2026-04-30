@@ -496,10 +496,11 @@ void setup() {
   // Set up the 7-Segment LED Panels
   Player_PolePositions[0].begin(0x70);  // Lanes 1 & 2
   Player_PolePositions[1].begin(0x71);  // Lanes 3 & 4
+
   LapRecNum.begin(0x72);                // Pass in the address for the Lap Counter and Lap Record Car Number
   LapTimeRec.begin(0x77);               // Pass in the address for the Lap Record Time
-  Player_Times[0].begin(0x73);          // Pass in the address for the Place 1 Lap Time
-  Player_Times[1].begin(0x74);          // Pass in the address for the Place 2 Lap Time
+  Player_Times[1].begin(0x73);          // Pass in the address for the Place 1 Lap Time
+  Player_Times[0].begin(0x74);          // Pass in the address for the Place 2 Lap Time
   Player_Times[2].begin(0x75);          // Pass in the address for the Place 3 Lap Time
   Player_Times[3].begin(0x76);          // Pass in the address for the Place 4 Lap Time
 
