@@ -1256,6 +1256,13 @@ void Select_Car() {
 
       case InputEvent::BUTTON_START:
         currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN;
+        if (cars[Car_Config_Index].p_lane != nullptr) {
+          initLane(cars[Car_Config_Index].lane - 1); // If we hit back we also need to put the car/lane configuration back in place
+          initCar(Car_Config_Index);
+          Configured_Racers--; // We need to increment this _BACK UP_ again if we back out of the configuration now
+          Pole_Pos_Display(); // Flush the display from the lane that the user was previously configured in
+          Display_Car_Select();
+        }
         return;
 
       case InputEvent::BUTTON_BACK:
