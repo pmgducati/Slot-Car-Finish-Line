@@ -368,19 +368,15 @@ int ReadButtonStop(bool waitForRelease = true) {
   return buttonPressed;
 }
 
-// Rotary Encoder monitoring
 void Rotary_Encoder() {
-  unsigned long encoder_time_current = millis();
-  static unsigned long encoder_time_previous = 0;
+  static long lastPosition = 0;
+  long position = myEnc.read() / 4;
 
-  if ((encoder_time_current - encoder_time_previous) > debounceEncoder) {
-    // Enough time passed -> accept new reading
-    Encoder_Position_New = myEnc.read();
-    encoder_time_previous = encoder_time_current;
+  if (position != lastPosition) {
+    lastPosition = position;
+    Encoder_Position_New = position;
   } else {
-    // Too soon -> treat as noise, keep stable
-    Encoder_Position_New = myEnc.read();
-    Encoder_Position_Old = Encoder_Position_New;
+    lastPosition = position;
   }
 }
 
