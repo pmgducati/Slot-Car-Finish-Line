@@ -2248,17 +2248,22 @@ void End_Race() {
 // Reset all Variables and 7 Segment Displays from Previous Race and Record Lap Record
 void Clear_Race() {
   // --- Save Race Record to EEPROM ---
-  LapRecord();
+  if (Record_Cars_Index >= 0) { // Only if we actually completed a lap where a record was set
+    LapRecord(cars[Record_Cars_Index].number);
+  }
 
   // --- Reset State Variables ---
   Current_Lap_Num = 0;
   Num_Laps = 5;
-  Num_Racers = Num_Lanes;
+  Num_Racers = 2;
   Configured_Racers = 0;
   Car_Config_Index = 0;
+  Record_Cars_Index = -1;
   pauseStartTime = 0;
-  totalPauseDuration = 0;
+
+  // Reset the rotary encoder values back to 0, including the static variables storing current encoder positional information
   myEnc.write(0);
+  readInputs();
 
   // --- Clear LEDs ---
   FastLED.clear();
@@ -2270,11 +2275,9 @@ void Clear_Race() {
   initLanes();
 
   // --- Clear Leaderboard Display ---
-  for (int player = 0; player < Num_Racers; player++) {
+  for (int player = 0; player < Num_Lanes; player++) {
     Player_Times[player].clear();
     Player_Times[player].writeDisplay();
-    Player_PolePositions[player].clear();
-    Player_PolePositions[player].writeDisplay();
   }
   Player_PolePositions[0].clear();
   Player_PolePositions[0].writeDisplay();
