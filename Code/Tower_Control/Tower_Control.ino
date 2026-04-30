@@ -1968,45 +1968,51 @@ void DetermineRacePlace() {
 void Display_Leaderboard() {
   // Nothing to update if we're only on the first lap
   if (Current_Lap_Num < 2) { return; }
-
   // Sorts the cars based on how many laps completed and lowest total race time
   qsort(cars, Num_Racers, sizeof(struct Car), cmp_lap_and_total_time);
 
   // Declare our lap time variables
-  unsigned short PlayerLapTimes_Display[4];
   char PlayerLapTimes_Strings[4][5];
-
-  // Clear out the digital displays to prepare for writing the new data
-  int Player_Index;
-  for (int Player = 1; Player <= Num_Racers; Player++) {
-    Player_Index = Player - 1;
-    Player_Times[Player_Index].clear();
-    Player_Times[Player_Index].writeDisplay();
-    Player_PolePositions[Player_Index].clear();
-    Player_PolePositions[Player_Index].writeDisplay();
-  }
+  bool dp1 = false;
+  bool dp2 = false;
+  unsigned int lapDisplay = 0;
 
   // Write all the player lap times and pole positions
-  for (int Player = 1; Player <= Num_Racers; Player++) {
-    Player_Index = Player - 1;
-    // Limit the lap time we'll display to ###.# seconds from milliseconds
-    PlayerLapTimes_Display[Player_Index] = (cars[Player_Index].lap_time > 999999 ? 999999 : cars[Player_Index].lap_time) / 1000;
-    sprintf(PlayerLapTimes_Strings[Player_Index], "%4hu", PlayerLapTimes_Display[Player_Index]);
+  for (int player_i = 0; player_i < Num_Racers; player_i++) {
+    if (cars[player_i].lap_time == 0) {
+      Player_Times[player_i].clear();
+      Player_Times[player_i].writeDisplay();
+      continue;
+    }
+
+    // Limit the lap time we'll display to ##.## or ###.# seconds from milliseconds
+    if (cars[player_i].finish == 1) { // End of the race, display last final times before the reset
+      lapDisplay = (cars[player_i].total_time > 9999999 ? 9999999 : cars[player_i].total_time);
+    } else {
+      lapDisplay = (cars[player_i].lap_time > 999999 ? 999999 : cars[player_i].lap_time);
+    }
+
+    if (lapDisplay < 100000) {         // < 100 sec → ##.##
+      lapDisplay = lapDisplay / 10;
+      dp1 = true;
+      dp2 = false;
+    } else if (lapDisplay < 1000000) { // < 1000 sec → ###.#
+      lapDisplay = lapDisplay / 100;
+      dp1 = false;
+      dp2 = true;
+    } else {                           // >= 1000 sec → ####
+      lapDisplay = lapDisplay / 1000;
+      dp1 = false;
+      dp2 = false;
+    }
+
+    sprintf(PlayerLapTimes_Strings[player_i], "%4hu", lapDisplay);
 
     // Write the player lap time to the ascii buffer
-    Player_Times[Player_Index].writeDigitAscii(0, PlayerLapTimes_Strings[Player_Index][0]);
-    Player_Times[Player_Index].writeDigitAscii(1, PlayerLapTimes_Strings[Player_Index][1], true);
-    Player_Times[Player_Index].writeDigitAscii(2, PlayerLapTimes_Strings[Player_Index][2]);
-    Player_Times[Player_Index].writeDigitAscii(3, PlayerLapTimes_Strings[Player_Index][3]);
-
-    // If it's an odd numbered player, display the car number to the left, even numbered player to the right
-    if (Player % 2 != 0) {
-      Player_PolePositions[Player_Index].writeDigitAscii(2, Car_Numbers[cars[Player_Index].number][0]);
-      Player_PolePositions[Player_Index].writeDigitAscii(3, Car_Numbers[cars[Player_Index].number][1]);
-    } else {
-      Player_PolePositions[Player_Index].writeDigitAscii(0, Car_Numbers[cars[Player_Index].number][0]);
-      Player_PolePositions[Player_Index].writeDigitAscii(1, Car_Numbers[cars[Player_Index].number][1]);
-    }
+    Player_Times[player_i].writeDigitAscii(0, PlayerLapTimes_Strings[player_i][0]);
+    Player_Times[player_i].writeDigitAscii(1, PlayerLapTimes_Strings[player_i][1], dp1);
+    Player_Times[player_i].writeDigitAscii(2, PlayerLapTimes_Strings[player_i][2], dp2);
+    Player_Times[player_i].writeDigitAscii(3, PlayerLapTimes_Strings[player_i][3]);
 
     // Write the player lap time and pole position to the display
     Player_Times[player_i].writeDisplay();
