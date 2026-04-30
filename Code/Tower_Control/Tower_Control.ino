@@ -244,8 +244,10 @@ String Car_Numbers[11] = { "01", "03", "05", "05", "33", "51", "57", "80", "88",
 // Menu selection for Erasing EEPROM
 String Rec_Reset[20] = { "NO", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X", "YES", "X", "XXX", "X", "XXX", "X", "XXX", "X", "XXX", "X" };
 
-// --- Function Declarations ---
+// --- Function Declarations (Prototypes) ---
 void Options(bool reset);
+void Pole_Pos_Display(int lane_num = -1, int index = -1);
+void LapRecord(int carNumber = (sizeof(Car_Numbers) / sizeof(Car_Numbers[0])) - 1);
 
 // Function to help qsort cars in place order
 int cmp_lap_and_total_time(const void *left, const void *right) {
