@@ -427,35 +427,48 @@ const uint8_t NP_LANE_MAP[4][4] = {
   { 2, 1, 0, 15 }     // Lane 4
 };
 
-// Initialize car objects to default starting values
+// Initialize a given car object
+void initCar(int i) {
+  cars[i].lane = i + 90;     // Set lane to a non-existent lane
+  cars[i].p_lane = nullptr;  // No lane-pointer by default (set below if desired)
+  cars[i].number = 10;       // Default placeholder car number
+  cars[i].cur_lap = 0;
+  cars[i].place = i + 1;
+  cars[i].lap_time = 0;
+  cars[i].prior_lap_ms = 0;  // millis() timestamp of the last completed lap to calculate lap times
+  cars[i].total_time = 0;
+  cars[i].start_time = 0;
+  cars[i].last_lap = 0;
+  cars[i].finish = 0;
+  cars[i].total_displayed = false;
+}
+
+// Initialize all car objects to default starting values
 void initCars() {
   for (int i = 0; i < Num_Lanes; ++i) {
-    cars[i].lane = i + 90;     // Set lane to a non-existent lane
-    cars[i].p_lane = nullptr;  // No lane-pointer by default (set below if desired)
-    cars[i].number = 10;       // Default placeholder car number
-    cars[i].cur_lap = 0;
-    cars[i].place = i + 1;
-    cars[i].lap_time = 0;
-    cars[i].total_time = 0;
-    cars[i].last_lap = 0;
-    cars[i].finish = 0;
+    initCar(i);
   }
 }
 
-// Initialize lane objects to default starting values
+// Initialize a given lane object
+void initLane(int i){
+  lanes[i].number = i + 1;   // Lane numbers are 1-based
+  lanes[i].p_car = nullptr;  // Default to no car in a lane
+  for (int j = 0; j < 4; ++j) {
+    lanes[i].np[j] = NP_LANE_MAP[i][j];
+  }
+  lanes[i].relay = RELAY_PINS[i];
+  lanes[i].monitor_lap = MONITOR_PINS[i];
+  lanes[i].state = -1;
+  lanes[i].prev_state = -1;
+  lanes[i].penalty = 0;
+  lanes[i].penalty_time = 0;
+}
+
+// Initialize all lane objects to default starting values
 void initLanes() {
   for (int i = 0; i < Num_Lanes; ++i) {
-    lanes[i].number = i + 1;   // Lane numbers are 1-based
-    lanes[i].p_car = nullptr;  // Default to no car in a lane
-    for (int j = 0; j < 4; ++j) {
-      lanes[i].np[j] = NP_LANE_MAP[i][j];
-    }
-    lanes[i].relay = RELAY_PINS[i];
-    lanes[i].monitor_lap = MONITOR_PINS[i];
-    lanes[i].state = -1;
-    lanes[i].prev_state = -1;
-    lanes[i].penalty = 0;
-    lanes[i].penalty_time = 0;
+    initLane(i);
   }
 }
 
