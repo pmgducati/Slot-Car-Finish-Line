@@ -1208,6 +1208,23 @@ void Select_Car() {
         currentMenu = MenuState::MENU_NUM_LAPS;
         return;
 
+      case InputEvent::BUTTON_STOP:
+        if (cars[Car_Config_Index].p_lane != nullptr) {
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print("Car ");
+            lcd.print(Car_Config_Index + 1);
+            lcd.print(" Lane ");
+            lcd.print(cars[Car_Config_Index].lane);
+            lcd.print(" Num");
+            Center_Text_Car(cars[Car_Config_Index].number);
+            lcd.print(Car_Names[cars[Car_Config_Index].number]);
+            delay(3000);
+            currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK;
+            return;
+        }
+        continue;
+
       case InputEvent::NONE:
         continue;
 
