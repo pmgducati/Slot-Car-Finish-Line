@@ -1026,6 +1026,28 @@ void Option_Clear_Record_Lap() {
   }
 }
 
+void Display_Car_Select() {
+  // Write all the cars configured
+  for (int i = 0; i < Num_Lanes; i++) {
+    // Blank out the display if the lane doesn't have a car in it
+    if (lanes[i].p_car == nullptr) {
+      Player_Times[i].clear();
+      Player_Times[i].writeDisplay();
+      continue;
+    }
+
+    // Write the car ascii buffer
+    int carNum = (lanes[i].p_car - cars) + 1;
+    Player_Times[i].writeDigitAscii(0, 'C');
+    Player_Times[i].writeDigitAscii(1, 'A');
+    Player_Times[i].writeDigitAscii(2, 'R');
+    Player_Times[i].writeDigitAscii(3, '0' + carNum);
+
+    // Write the to the display
+    Player_Times[i].writeDisplay();
+  }
+}
+
 // Menu Section to Specify Number of Racers
 void Number_of_Racers() {
   // --- Helper for updating the display ---
@@ -1315,6 +1337,7 @@ void Select_Car_Lane() {
         // Commit lane assignment
         cars[Car_Config_Index].lane = curLane;
         cars[Car_Config_Index].place = curLane;
+        Display_Car_Select();
         currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN;
         return;
 
@@ -1475,8 +1498,8 @@ void Car_Num_Lane_Assign() {
             break;
           }
 
-          if (newly_configured_car) {
-            Configured_Racers++;
+          Display_Car_Select();
+
           }
 
           // If all racers configured, advance to race start
