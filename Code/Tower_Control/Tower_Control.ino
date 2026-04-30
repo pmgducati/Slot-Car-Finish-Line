@@ -1838,6 +1838,12 @@ void Pause_Race() {
     raceState = RaceState::ACTIVE;
     stateEntered = true;
   }
+
+  if (ReadButtonStop(false)) {
+    raceState = RaceState::STOPPED;
+    stateEntered = true;
+    return;
+  }
 }
 
 // Stops race completely, kills power to all lanes and resets unit for new race
