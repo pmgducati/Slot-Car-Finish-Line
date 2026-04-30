@@ -985,11 +985,11 @@ void Option_Clear_Record_Lap() {
         break;
 
       case InputEvent::BUTTON_START:
-        if (selectedIndex == 10) {  // “YES” — clear lap record
+        if (Rec_Reset[selectedIndex] == "YES") {  // "YES" — clear lap record
           Record_Lap = 99999;
-          Record_Car_Num = 10;
-          Record_Car = 10;
-          LapRecord();
+          Record_Cars_Index = -1;
+          Record_Car_Numbers_Index = (sizeof(Car_Numbers) / sizeof(Car_Numbers[0])) - 1;
+          LapRecord(Record_Car_Numbers_Index);
           LapRecordDisplay();
         }
         // In both YES/NO cases, return to Options
