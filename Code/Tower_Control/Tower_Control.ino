@@ -91,6 +91,7 @@ Encoder myEnc(ENCODER_INCREMENT, ENCODER_DECREMENT);
 enum class MenuState {
   MENU_WELCOME,
   MENU_OPTIONS,
+  MENU_OPTIONS_BACK,
   OPTIONS_END_RACE_RESET_DELAY,
   OPTIONS_RACE_PENALTY_TIMER,
   OPTIONS_TRACK_DEBOUNCE_TIMING,
@@ -538,6 +539,10 @@ void loop() {
       Options(true);
       break;
 
+    case MenuState::MENU_OPTIONS_BACK:
+      Options(false);
+      break;
+
     case MenuState::OPTIONS_END_RACE_RESET_DELAY:
       Option_Stop_Race();
       break;
@@ -775,6 +780,7 @@ void Option_Stop_Race() {
 
   // --- Menu loop ---
   int lastValue = -1;
+  int valueBackup = Delay_Stop_Race;
   while (true) {
     InputEvent event = readInputs();
 
@@ -795,7 +801,8 @@ void Option_Stop_Race() {
 
       case InputEvent::BUTTON_BACK:
         // Cancel and return without saving
-        currentMenu = MenuState::MENU_OPTIONS;
+        Delay_Stop_Race = valueBackup;
+        currentMenu = MenuState::MENU_OPTIONS_BACK;
         return;
 
       case InputEvent::NONE:
@@ -840,6 +847,7 @@ void Option_Penalty() {
 
   // --- Menu loop ---
   unsigned long lastValue = -1;
+  unsigned long valueBackup = Delay_Penalty;
   while (true) {
     InputEvent event = readInputs();
 
@@ -860,7 +868,8 @@ void Option_Penalty() {
 
       case InputEvent::BUTTON_BACK:
         // Return without saving
-        currentMenu = MenuState::MENU_OPTIONS;
+        Delay_Penalty = valueBackup;
+        currentMenu = MenuState::MENU_OPTIONS_BACK;
         return;
 
       case InputEvent::NONE:
@@ -905,6 +914,7 @@ void Option_Debounce_Track() {
 
   // --- Menu loop ---
   unsigned int lastValue = 0;
+  unsigned int valueBackup = debounceTrack;
   while (true) {
     InputEvent event = readInputs();
 
@@ -925,7 +935,8 @@ void Option_Debounce_Track() {
 
       case InputEvent::BUTTON_BACK:
         // Return without saving
-        currentMenu = MenuState::MENU_OPTIONS;
+        debounceTrack = valueBackup;
+        currentMenu = MenuState::MENU_OPTIONS_BACK;
         return;
 
       case InputEvent::NONE:
@@ -945,8 +956,8 @@ void Option_Debounce_Track() {
 
 // Menu Section to Clear Lap Record from EEPROM
 void Option_Clear_Record_Lap() {
-  static int selectedIndex = 0;
-  const int maxIndex = 19;
+  int selectedIndex = 0;
+  const int maxIndex = (sizeof(Rec_Reset) / sizeof(Rec_Reset[0])) - 1;;
 
   auto updateDisplay = [](int index) {
     static bool firstRun = true;
@@ -998,7 +1009,7 @@ void Option_Clear_Record_Lap() {
 
       case InputEvent::BUTTON_BACK:
         // Back out without clearing
-        currentMenu = MenuState::MENU_OPTIONS;
+        currentMenu = MenuState::MENU_OPTIONS_BACK;
         return;
 
       case InputEvent::NONE:
