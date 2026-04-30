@@ -189,8 +189,8 @@ int Car_Config_Index = 0;    //Tracks which car is having its number and lane as
 // Race Information
 int Current_Lap_Num = 0;           //Lap Count in Current Race
 unsigned long Record_Lap = 99999;  //Default Lap Record Time (Actual is called from EEPROM)
-int Record_Car_Num;                //Array Identifer of the record setting car
-int Record_Car;                    //Lap Record Car Number (Value is called from EEPROM)
+int Record_Cars_Index = -1;        //Array Identifer of the record setting car
+int Record_Car_Numbers_Index;      //Lap Record Car Number (Value is called from EEPROM)
 unsigned long sound_buffer;        //Time (Milliseconds) buffer to avoid sound stomping on eachother
 
 // Struct (or class/object) that defines everything that a car needs to have
@@ -488,7 +488,7 @@ void setup() {
 
   // Read EEPROM Variables and replace default values
   Record_Lap = EEPROMReadlong(0x02);
-  Record_Car = EEPROM.read(0x00);
+  Record_Car_Numbers_Index = EEPROM.read(0x00);
   Delay_Penalty = EEPROMReadInt(0x08);
   Delay_Stop_Race = EEPROMReadInt(0x06);
   debounceTrack = EEPROMReadInt(0x10);
@@ -1894,8 +1894,8 @@ void Race_Metrics() {
     // --- Check for new lap record ---
     if (cars[c].lap_time < Record_Lap && (cars[c].lap_time) > debounceTrack) {
       Record_Lap = cars[c].lap_time;
-      Record_Car_Num = c;
-      Record_Car = cars[c].number;
+      Record_Cars_Index = c;
+      Record_Car_Numbers_Index = cars[c].number;
       LapRecordDisplay();
     }
 
@@ -1908,12 +1908,12 @@ void Race_Metrics() {
 // Reads Lap Record from EEPROM and Displays on 7 Sgement Displays
 void LapRecordDisplay() {
   char LapTimeRec_String[5];
-  unsigned short LapTimeRec_Display = (Record_Lap > 999999 ? 999999 : Record_Lap) / 1000;  // Limit the lap time we'll display to ###.# seconds from milliseconds
+  unsigned short LapTimeRec_Display = (Record_Lap > 99999 ? 99999 : Record_Lap) / 10;  // Limit the lap time we'll display to ##.## seconds from milliseconds
   sprintf(LapTimeRec_String, "%4hu", LapTimeRec_Display);
 
   // Write the car who has the lap record
-  LapRecNum.writeDigitAscii(0, Car_Numbers[Record_Car][0]);
-  LapRecNum.writeDigitAscii(1, Car_Numbers[Record_Car][1]);
+  LapRecNum.writeDigitAscii(0, Car_Numbers[Record_Car_Numbers_Index][0]);
+  LapRecNum.writeDigitAscii(1, Car_Numbers[Record_Car_Numbers_Index][1]);
 
   // Write the lap time record
   LapTimeRec.writeDigitAscii(0, LapTimeRec_String[0]);
@@ -1927,9 +1927,9 @@ void LapRecordDisplay() {
 }
 
 //When new Lap Record is achieved it is written to EEPROM
-void LapRecord() {
+void LapRecord(int carNumber) {
   EEPROM_writelong(0x02, Record_Lap);
-  EEPROM.write(0x00, cars[Record_Car_Num].number);
+  EEPROM.write(0x00, carNumber);
 }
 
 //Write Long to EEPROM
