@@ -477,6 +477,7 @@ void initLanes() {
 void setup() {
   // Start Serial Monitor
   Serial.begin(9600);
+  while (!Serial && millis() < 3000) ;  // wait up to 3 sec
 
   // I2S Audio / SD setup
   AudioMemory(8);
