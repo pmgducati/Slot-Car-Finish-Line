@@ -182,7 +182,7 @@ int Num_Laps = 5;            //Default number of laps in the Race (Can be Modifi
 int MIN_LAPS = 5;            //Minimum number of laps in a race
 int MAX_LAPS = 99;           //Maximum number of laps in a race
 int Num_Lanes = 4;           //Max number of lanes on the race track
-int Num_Racers = Num_Lanes;  //Default number of Racers in the Race (Can be Modified in Menu 1-4)
+int Num_Racers = 2;          //Default number of Racers in the Race (Can be Modified in Menu 1-4)
 int Configured_Racers = 0;   //How many cars have been configured
 int Car_Config_Index = 0;    //Tracks which car is having its number and lane assigned
 
@@ -1218,7 +1218,7 @@ int next_lane_down(int start_index = 0) {
 
 // Helps find the next possible slot available for configuring a new car
 int findFirstUnconfiguredCar() {
-  for (int i = 0; i < Num_Lanes; i++) {
+  for (int i = 0; i < Num_Racers; i++) {
     if (cars[i].p_lane == nullptr) {
       return i;  // Found first unconfigured car (no lane assigned yet)
     }
@@ -2234,7 +2234,7 @@ void End_Race() {
         playSdWav1.play("LASTLAP.WAV");
       }
       cars[c].last_lap = 1;
-      for (int i = 0; i < NUM_LANES; i++) {
+      for (int i = 0; i < Num_Lanes; i++) {
         leds[cars[c].p_lane->np[i]] = CRGB(255, 255, 255);
       }
     }
@@ -2250,7 +2250,7 @@ void End_Race() {
     cars[c].finish = 1;
 
     // Quick blackout
-    for (int i = 0; i < NUM_LANES; i++) {
+    for (int i = 0; i < Num_Lanes; i++) {
       leds[cars[c].p_lane->np[i]] = CRGB(0, 0, 0);
     }
     FastLED.show();
