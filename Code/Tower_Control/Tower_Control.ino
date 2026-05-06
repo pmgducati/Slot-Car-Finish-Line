@@ -99,6 +99,7 @@ enum class MenuState {
   MENU_NUM_RACERS,
   MENU_NUM_LAPS,
   MENU_CAR_NUM_LANE_ASSIGN,
+  MENU_CAR_NUM_LANE_ASSIGN_BACK,
   MENU_NONE
 };
 MenuState currentMenu = MenuState::MENU_WELCOME;
