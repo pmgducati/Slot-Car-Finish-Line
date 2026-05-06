@@ -206,6 +206,7 @@ struct Car {
   unsigned long start_time;  // Start race time (millis at the race start)
   int last_lap;              // Flag to signal last lap Neopixel and Sound Events
   int finish;                // Has the car finished the race
+  bool total_displayed;      // Has the car had it's total_time displayed
 };
 
 // Declare our cars array and fill them in with default values in the loop
@@ -1924,7 +1925,7 @@ void Stop_Race() {
   lcd.setCursor(3, 0);
   lcd.print("Race Ended");
 
-  delay(Delay_Stop_Race);
+  delay(Delay_Stop_Race/2); // Make this half as long as a standard race ending as the race was aborted
 
   // Fade out animation
   for (int b = 84; b >= 0; b -= 2) {
@@ -2287,6 +2288,10 @@ void End_Race() {
   int carsFinished = 0;
   for (int c = 0; c < Num_Racers; c++) {
     if (cars[c].finish == 1) carsFinished++;
+    if (cars[c].finish == 1 && now > (cars[c].start_time + cars[c].total_time + Delay_Final_Times_Display) && !cars[c].total_displayed) {
+      cars[c].total_displayed = true;
+      Display_Leaderboard();
+    }
   }
 
   // When the first car crosses the finish line play the finish Song
@@ -2302,9 +2307,13 @@ void End_Race() {
     lcd.setCursor(0, 0);
     lcd.print("Race Finished!  ");
     finishSoundPlayed = false;
-    delay(Delay_Stop_Race);
     raceState = RaceState::CLEAR;
     stateEntered = true;
+
+    delay(Delay_Final_Times_Display);
+    Display_Leaderboard();
+
+    delay(Delay_Stop_Race);
   } else {
     raceState = RaceState::ACTIVE;
   }
