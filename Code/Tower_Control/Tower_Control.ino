@@ -569,6 +569,7 @@ void loop() {
       break;
 
     case MenuState::MENU_CAR_NUM_LANE_ASSIGN:
+    case MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK:
       Car_Num_Lane_Assign();
       break;
 
@@ -1073,9 +1074,11 @@ void Number_of_Racers() {
   lcd.setCursor(0, 0);
   lcd.print("Number of Racers");
   updateDisplay(Num_Racers);
+  Pole_Pos_Display();
 
   // --- Menu loop – user is locked here until Start or Back is pressed ---
   int lastRacers = -1;
+  int existingNumRacers = Num_Racers;
   while (true) {
     InputEvent event = readInputs();
 
@@ -1090,10 +1093,24 @@ void Number_of_Racers() {
 
       case InputEvent::BUTTON_START:
         currentMenu = MenuState::MENU_NUM_LAPS;
+        if (Num_Racers < existingNumRacers) {
+          // Re-init the extra cars and lanes that may have already been configured
+          for (int i = Num_Racers; i < Num_Lanes; ++i) {
+            int laneToReinit = cars[i].lane - 1;
+            if (cars[i].p_lane != nullptr) {
+              Configured_Racers--;
+              initLane(laneToReinit);
+            }
+            initCar(i);
+          }
+          Pole_Pos_Display();
+          Display_Car_Select();
+        }
         return;
 
       case InputEvent::BUTTON_BACK:
         currentMenu = MenuState::MENU_OPTIONS;
+        Num_Racers = existingNumRacers;
         return;
 
       case InputEvent::NONE:
@@ -1351,7 +1368,7 @@ void Select_Car_Lane() {
 
       case InputEvent::BUTTON_BACK:
         // Go back without committing
-        currentMenu = MenuState::MENU_NUM_LAPS;
+        currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK;
         return;
 
       case InputEvent::NONE:
@@ -1416,7 +1433,7 @@ void Select_Car_Num() {
 
       case InputEvent::BUTTON_BACK:
         // Don’t commit — just go back to previous menu
-        currentMenu = MenuState::MENU_NUM_LAPS;
+        currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK;
         return;
 
       case InputEvent::NONE:
@@ -1455,24 +1472,46 @@ void Car_Num_Lane_Assign() {
   Car cars_backup[Num_Lanes];
   memcpy(cars_backup, cars, sizeof(cars_backup));
 
+  // --- Create a backup copy of the lane array ---
+  Car lanes_backup[Num_Lanes];
+  memcpy(lanes_backup, lanes, sizeof(lanes_backup));
+
+  // --- Make a backup of the number of configured racers ---
+  int configured_racers_backup = Configured_Racers;
+
   // --- Step 1: Select the car to configure ---
   Select_Car();
   if (currentMenu == MenuState::MENU_NUM_LAPS) {
     memcpy(cars, cars_backup, sizeof(cars_backup));
+    memcpy(lanes, lanes_backup, sizeof(lanes_backup));
+    Pole_Pos_Display(cars[Car_Config_Index].lane, cars[Car_Config_Index].number);
+    Configured_Racers = configured_racers_backup;
+    Display_Car_Select();
     return;  // User backed out
+  } else if (currentMenu == MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK) {
+    currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN;
+    return;
   }
 
   // --- Step 2: Select the lane ---
   Select_Car_Lane();
-  if (currentMenu == MenuState::MENU_NUM_LAPS) {
+  if (currentMenu == MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK) {
     memcpy(cars, cars_backup, sizeof(cars_backup));
+    memcpy(lanes, lanes_backup, sizeof(lanes_backup));
+    Pole_Pos_Display(cars[Car_Config_Index].lane, cars[Car_Config_Index].number);
+    Configured_Racers = configured_racers_backup;
+    Display_Car_Select();
     return;
   }
 
   // --- Step 3: Select the car number/type ---
   Select_Car_Num();
-  if (currentMenu == MenuState::MENU_NUM_LAPS) {
+  if (currentMenu == MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK) {
     memcpy(cars, cars_backup, sizeof(cars_backup));
+    memcpy(lanes, lanes_backup, sizeof(lanes_backup));
+    Pole_Pos_Display(cars[Car_Config_Index].lane, cars[Car_Config_Index].number);
+    Configured_Racers = configured_racers_backup;
+    Display_Car_Select();
     return;
   }
 
@@ -1508,7 +1547,7 @@ void Car_Num_Lane_Assign() {
 
           Display_Car_Select();
 
-          }
+          if (newly_configured_car) Configured_Racers++;
 
           // If all racers configured, advance to race start
           if (Configured_Racers == Num_Racers) {
@@ -1524,8 +1563,12 @@ void Car_Num_Lane_Assign() {
         }
 
       case InputEvent::BUTTON_BACK:
-        currentMenu = MenuState::MENU_NUM_LAPS;  // Back out to previous menu
+        currentMenu = MenuState::MENU_CAR_NUM_LANE_ASSIGN_BACK;  // Back out to previous menu
         memcpy(cars, cars_backup, sizeof(cars_backup));
+        memcpy(lanes, lanes_backup, sizeof(lanes_backup));
+        Pole_Pos_Display(cars[Car_Config_Index].lane, cars[Car_Config_Index].number);
+        Configured_Racers = configured_racers_backup;
+        Display_Car_Select();
         return;
 
       case InputEvent::NONE:
