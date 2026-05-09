@@ -221,7 +221,6 @@ struct Lane {
   int currentState;            // In Track Lap Counter Monitors State, per lane
   int previousState;           // In Track Lap Counter Monitors Previous State, per lane, prevents duplicate lap counting
   bool hasPenalty;             // Flag if car crosses start line before the green light, per lane
-  unsigned long penaltyStartTime; // The race time the penalty occurred (Milliseconds)
 };
 
 // Declare our lanes array and fill them in with default values in the loop
@@ -464,7 +463,6 @@ void initLane(int i){
   lanes[i].currentState = -1;
   lanes[i].previousState = -1;
   lanes[i].hasPenalty = 0;
-  lanes[i].penaltyStartTime = 0;
 }
 
 // Initialize all lane objects to default starting values
@@ -1680,7 +1678,6 @@ void startRace() {
         // Car crossed early?
         if (!lanes[l].hasPenalty && currentState == LOW) {
           lanes[l].hasPenalty = 1;
-          lanes[l].penaltyStartTime = millis();
           digitalWrite(lanes[l].relay, HIGH); // Cut power to the lane
           playSdWav1.play("PENALTY.WAV");
 
@@ -1731,7 +1728,6 @@ void startRace() {
 
           if (!lanes[l].hasPenalty && currentState == LOW) {
             lanes[l].hasPenalty = 1;
-            lanes[l].penaltyStartTime = millis();
             digitalWrite(lanes[l].relay, HIGH); // Cut power to the lanes
             playSdWav1.play("PENALTY.WAV");
 
