@@ -373,6 +373,7 @@ int readButtonStop(bool waitForRelease = true) {
   return buttonPressed;
 }
 
+// Reads the rotary encoder
 void readRotaryEncoder() {
   static long lastPosition = 0;
   long position = myEnc.read() / 4;
@@ -1030,6 +1031,7 @@ void optionClearLapRecord() {
   }
 }
 
+// Displays the car that's currently configured to a lane
 void displayCarSelect() {
   // Write all the cars configured
   for (int i = 0; i < numLanes; i++) {
